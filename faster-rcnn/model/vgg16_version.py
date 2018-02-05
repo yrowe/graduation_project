@@ -5,9 +5,11 @@ from torch.autograd import Variable
 import torchvision.models as models
 
 from utils.config import cfg
+from rpn.rpn import RPN
 
 class Faster_RCNN_with_VGG16(nn.Module):
 	def __init__(self,classes):
+		super(Faster_RCNN_with_VGG16, self).__init__()    #what does this line mean?should it be necessary?
 		self.model_path = cfg.PATH   #the pretrained model path
 		self.classes = classes       #concrete classes of the dataset
 		self.n_classes = len(classes) #number of classes
