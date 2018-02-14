@@ -1,4 +1,5 @@
 import torch.nn as nn
+import numpy as np
 
 from model.utils.bbox_tools import generate_anchor_base
 from model.utils.creator_tool import ProposalCreator
@@ -79,7 +80,13 @@ class RegionProposalNetwork(nn.Module):
 				anchor(array): Coordinates of enumerated shifted anchors. Shape: (H, W, A, 4)
 
 		'''
-		
+		n, _, hh, ww = x.shape
+		#Generate proposals from bbox deltas and shifted anchors.
+		anchor = _generate_anchors_all(
+				np.array(self.anchor_base),
+				self.feat_stride, hh, ww)
+
+
 
 
 
@@ -101,3 +108,33 @@ def normal_init(layer, mean, stddev):
 
 	layer.weight.data.normal_(mean, stddev)
 	m.bias.data.zero_()
+
+
+def _generate_anchors_all(anchor_base, feat_stride, height, width):
+	'''
+	shifted_x, shifted_y represents the x-coordinates and y-coordinates respectively in the feature map, 
+	while feat_stride is defined previously, see details in `class RegionProposalNetwork` Args.
+
+	This function is to generate proposals from bbox deltas and shifted anchors.
+
+	As we have A base anchors(1, A, 4)   (typically, A equals 9)
+	to each cell K shifts(K, 1, 4).
+	
+	we got anchors(K, A, 4), and then reshape them to (K*A, 4)
+
+
+	returns (K*A, 4)
+	'''
+	xx = np.arange(0, width*feat_stride, feat_stride)
+	yy = np.arange(0, height*feat_stride, feat_stride)
+	shitf_x, shift_y = np.meshgrid(xx, yy)            #the shapes of shift_x and shift_y are both (yy, xx)
+	shift = np.stack((shift_y.ravel(), shift_x.ravel(),
+					  shift_y.ravel(), shift_x.ravel()), axis=1)
+
+	A =anchor_base.shape[0]    #typically is 9
+	K = shift.shape[0]
+
+	anchor = anchor_base.reshape((1, A, 4)) + shift.reshape((1, K, 4)).transpose((1, 0, 2))
+	anchor = anchor.reshape((K * A, 4)).astype(np.float32)
+	return anchor
+
