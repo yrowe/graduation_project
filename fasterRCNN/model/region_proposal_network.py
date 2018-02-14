@@ -80,12 +80,37 @@ class RegionProposalNetwork(nn.Module):
 				anchor(array): Coordinates of enumerated shifted anchors. Shape: (H, W, A, 4)
 
 		'''
-		n, _, hh, ww = x.shape
+		n, _, hh, ww = base_feat.shape            #ignoring the batchsize > 1 circustance, we can simply fix n to 1.
 		#Generate proposals from bbox deltas and shifted anchors.
 		anchor = _generate_anchors_all(
 				np.array(self.anchor_base),
 				self.feat_stride, hh, ww)
 
+		n_anchor = self.anchor_base.shape[0]    # need to confirm!
+
+		layer1 = F.relu(self.conv1(base_feat))
+
+		#path 1 ---- location, 4 coordinates:
+		rpn_locs = self.loc(layer1)             #shape [1, 36, 37, 50]
+		rpn_locs = rpn_locs.permute(0, 2, 3, 1).contiguous().view(1, -1, 4)    # shape [1, 16650, 4]
+
+		#path 2 ---- scores(propability), foreground/background:
+		rpn_scores = self.score(layer1)								#shape[1, 18, 37, 50]
+		rpn_scores = rpn_scores.permute(0, 2, 3, 1).contiguous()       #shape [1, 37, 50 ,18]
+		rpn_fg_scores = rpn_scores.view(1, hh, ww, n_anchor, 2)[:, :, :, :, 1].contiguous().view(1, -1)  #shape [1, 16650]
+		rpn_scores = rpn_scores.view(1, -1, 2)
+
+		# !TODO  this is a instance of ProposalCreator, it returns a ndarray.
+		rois = self.proposal_layer(
+				rpn_locs[0].cpu().data.numpy(),
+				rpn_fg_scores[0].cpu().data.numpy(),
+				anchor, img_size, scale=scale
+				)
+
+		rois_indices = np.zero(len(rois, ),dtype=np.int32)
+
+		return rpn_locs, rpn_scores, rois, rois_indices, anchor
+		
 
 
 
