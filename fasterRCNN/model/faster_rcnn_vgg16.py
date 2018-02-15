@@ -26,7 +26,7 @@ class FasterRCNNVGG16(FasterRCNN):
 	def __init__(self, n_fg_class=20, ratios=[0.5, 1, 2], anchor_scales=[8, 16, 32]):
 		extractor, classifier = vgg16_decompose()
 
-		rpn = RegionProposalNetwork()   #@TODO  the interface
+		rpn = RegionProposalNetwork()   #all in default. and the diction variable refers to what?
 
 		head = VGG16RoIHead()           #@TODO  the interface
 
