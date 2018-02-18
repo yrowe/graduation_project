@@ -4,7 +4,7 @@ from torchvision.models import vgg16
 
 from model.faster_rcnn import FasterRCNN
 from model.region_proposal_network import RegionProposalNetwork
-from model.roi import VGG16RoIHead
+from model.roi_module import RoIPooling2D
 
 
 class FasterRCNNVGG16(FasterRCNN):
@@ -28,12 +28,50 @@ class FasterRCNNVGG16(FasterRCNN):
 
 		rpn = RegionProposalNetwork()   #all in default. and the diction variable refers to what?
 
-		head = VGG16RoIHead()           #@TODO  the interface
+		head = VGG16RoIHead(
+					n_class=n_fg_class+1,
+					roi_size=7,
+					spatial_scale=(1./self.feat_stride),
+					classifier=classifier)           #@TODO  the interface
 
 		super(FasterRCNNVGG16, self).__init__(extractor, rpn, head)
 
 
+class VGG16RoIHead(nn.Module):
+	''' RoI pooling head part of FasterRCNN with VGG16 version
+	This outputs class-wise locations and classification based on feature
+	maps in the given RoIs
+	
+	Args:
+		n_class(int): the number of foreground and background class..
+		roi_size(int):  height and width of the feature maps after RoI-pooling.
+		spatial_scale(float): scale of the roi is resized.
+		classifier(nn.Module): four layer totally, two linear and two relu. 
+	'''
 
+	def __init__(self, n_class, roi_size, spatial_scale, classifier):
+		super(VGG16RoIHead, self).__init__()
+		self.classifier = classifier
+		self.cls_loc = nn.Linear(4096, n_class*4)
+		self.score = nn.Linear(4096, n_class)
+
+		normal_init(self.cls_loc, 0, 0.001)
+		normal_init(self.score, 0, 0.01)
+
+		self.n_class = n_class
+		self.roi_size = roi_size
+		self.spatial_scale = spatial_scale
+		self.roi = RoIPooling2D(self.roi_size, self.roi_size, self.spatial_scale)
+
+	def forward(self, x, rois, roi_indices):
+		'''
+		To be simplified, since we fixed the batchsize to 1,
+		There is no need the param roi_indices
+
+		Args:
+			x(Variable): 4D image variable.
+			rois(Tensor): 
+		'''
 
 def vgg16_decompose():
 	'''
@@ -107,3 +145,21 @@ def vgg16_decompose():
 
 	return nn.Sequential(*features), nn.Sequential(*classifier)
 	
+
+def normal_init(layer, mean, stddev):
+	'''
+	weight initialzer: truncated normal or random normal.
+
+	default is random normal.
+
+	Args:
+		layer(torch.nn.modules.conv.Conv2d):   three different conv layers in rpn.
+		mean(float): the mean value of Gaussian distribution
+		stddev(float): the standard deviation value of Gaussian distribution.
+	
+	this operation is inplace, so there is no returns.
+
+	'''
+
+	layer.weight.data.normal_(mean, stddev)
+	m.bias.data.zero_()
