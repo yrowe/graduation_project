@@ -55,4 +55,25 @@ class RoI(Function):
 		grad_output = grad_output.contiguous()
 		B, C, H, W = self.in_size
 		grad_input = t.zeros(self.in_size).cuda()
-		stream = Stream(ptr=)
+		stream = Stream(ptr=torch.cuda.current_stream().cuda_stream)
+		args = [grad_output.data.ptr(),
+				self.argmax_data.data.ptr(),
+				self.rois.data_ptr(),
+				grad_input.data_ptr(),
+				self.N, self.spatial_scale, C, H, W, self.outh, self.outw]
+
+		self.backward_fn(args=args,
+							block=(CUDA_NUM_THREADS,1,1),
+							grid=(GET_BLOCKS(grad_input.numel()),1,1),
+							stream=stream)
+
+		return grad_input, None
+
+
+class RoIPooling2D(nn.module):
+	def __init__(self, outh, outw, spatial_scale):
+		super(RoIPooling2D, self).__init__()
+		self.RoI = RoI(outh, outw, spatial_scale)
+
+	def forward(self, x, rois):
+		return self.RoI(x, rois)
