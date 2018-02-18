@@ -5,6 +5,7 @@ from torchvision.models import vgg16
 from model.faster_rcnn import FasterRCNN
 from model.region_proposal_network import RegionProposalNetwork
 from model.roi_module import RoIPooling2D
+from utils import array_tool as at 
 
 
 class FasterRCNNVGG16(FasterRCNN):
@@ -69,9 +70,35 @@ class VGG16RoIHead(nn.Module):
 		There is no need the param roi_indices
 
 		Args:
-			x(Variable): 4D image variable.
-			rois(Tensor): 
+			x(Variable): feature map, 4D variable(B,C,H,W).
+			rois(ndarray): a bounding box array containing coordinates of
+				proposal boxes after :meth`ProposalTargetCreator`.
+				A typical number is (128, 4), where 128 represents the 
+				proposal boxes of a single image, 4 represents the coordinates
+				of each boxes respectively.
+			roi_indices(torch.Tensor): since this algorithm should support
+				batch_size greater than 1.So rois actually should be a concatenate
+				of various images, and roi_indices should index which original image
+				they belong to. this implement fixes batch_size to 1.This params
+				would be delete latter.   @!TODO
 		'''
+		#in case roi_indices and rois are ndarray.
+		roi_indices = at.totensor(roi_indices).float()
+		rois = at.totensor(rois).float()
+
+		indices_and_rois = torch.cat([roi_indices[:, None],rois],dim=1)
+		#(B, ymin, xmin, ymax, xmax) -> (B, xmin, ymin, xmax, ymax)
+		xy_indices_and_rois = indices_and_rois[:, [0,2,1,4,3]]
+		indices_and_rois = torch.autograd.Variable(xy_indices_and_rois)
+
+		pool = self.roi(x, indices_and_rois)   #128*512*7*7    after RoI pooling layer
+		pool = pool.view(pool.size(0), -1)     #128 * 25088  inorder to share weight.
+		
+		fc7 = self.classifier(pool)
+		roi_cls_locs = self.cls_loc(fc7)
+		roi_scores = self.score(fc7)
+
+		return roi_cls_locs, roi_scores
 
 def vgg16_decompose():
 	'''
