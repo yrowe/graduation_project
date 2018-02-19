@@ -11,3 +11,12 @@ def totensor(data, cuda=True):
 
 	tensor = tensor.cuda()
 	return tensor
+
+
+def tonumpy(data):
+	if isinstance(data, np.ndarray):
+		return data
+	if isinstance(data, t._TensorBase):
+		return data.cpu().numpy()
+	if isinstance(data, t._autograd.Variable):
+		return tonumpy(data.data)
