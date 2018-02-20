@@ -81,4 +81,19 @@ def loc2bbox(src_bbox, loc):
  	roi[:, 2:3] = (ctr_y + 0.5 * h)[:, np.newaxis]   #y_max
  	roi[:, 3:4] = (ctr_x + 0.5 * w)[:, np.newaxis]   #x_max
 
- 	return roi 
+ 	return roi
+
+
+def bbox2loc(src_bbox, dst_bbox):
+	'''
+	given src_bbox and dst_bbox, encoding its loc,
+
+	given bounding boxes, this function computes offsets and scales
+	to match the source bounding boxes to the GT bounding boxes.
+	Mathematically, given a bounding box whose center is
+	:math`(y, x) = p_y, p_x` and size is :math`(p_h, p_w)`
+	and the ground truth bounding box whose center is
+	:math`(g_y, g_x)` and size :math:(g_h, g_w), the offsets and scales
+	between these two bbox are computed as follows:
+
+	`:math:` t_y = 
