@@ -84,9 +84,9 @@ def loc2bbox(src_bbox, loc):
  	return roi
 
 
-def bbox2loc(src_bbox, dst_bbox):
+def bbox2loc(src_bbox, gt_bbox):
 	'''
-	given src_bbox and dst_bbox, encoding its loc,
+	given src_bbox and gt_bbox, encoding its loc,
 
 	given bounding boxes, this function computes offsets and scales
 	to match the source bounding boxes to the GT bounding boxes.
@@ -96,4 +96,53 @@ def bbox2loc(src_bbox, dst_bbox):
 	:math`(g_y, g_x)` and size :math:(g_h, g_w), the offsets and scales
 	between these two bbox are computed as follows:
 
-	`:math:` t_y = 
+	:math:`t_y = \\frac{{g_y - p_y}}{p_h}`
+	:math:`t_x = \\frac{{g_x - p_x}}{p_w}`
+	:math:`t_h = \\log(\\frac{g_h}{p_h})`
+	:math:`t_w = \\log(\\frac{g_w}{p_w})`
+
+	the output is same type as of the inputs.
+	The computing formula is provided by the paper Faster RCNN.
+
+
+	Args:
+		src_bbox(array): An image coordinates array whose shape is
+			:math:`(R, 4)`, where `R` represents the number of bounding boxes.
+			These coordinates are
+			`p_{ymin}, p_{xmin}, p_{ymax}, p_{xmax}`
+
+		gt_bbox(array): An image coordinates whose shape is `(R, 4)`
+			These coordinates are
+			`g_{ymin}, g_{xmin}, g_{ymax}, g_{xmax}`
+
+	Returns:
+		array:
+		bounding box offsets and scales from `src_bbox` to `gt_bbox`
+		Its shape is `(R, 4)`
+		The second axis contains four values `t_y, t_x, t_h, t_w`
+	'''
+
+	height = src_bbox[:, 2] - src_bbox[:, 0]
+	width = src_bbox[:, 3] - src_bbox[:, 1]
+	ctr_y = src_bbox[:, 0] + 0.5 * height
+	ctr_x = src_bbox[:, 1] + 0.5 * width
+
+	base_height = gt_bbox[:, 2] - gt_bbox[:, 0]
+	base_width = gt_bbox[:, 3] - gt_bbox[:, 1]
+	base_ctr_y = gt_bbox[:, 0] + 0.5 * base_height
+	base_ctr_x = gt_bbox[:, 1] + 0.5 * base_width
+
+	eps = np.finfo(height.dtype).eps
+
+	#avoid to divide 0
+	height = np.maximum(height, eps)
+	width = np.maximum(width, eps)
+
+	dy = (base_ctr_y - ctr_y)/height
+	dx = (base_ctr_x - ctr_x)/width
+	dh = np.log(base_height/height)
+	dw = np.log(base_width/width)
+
+	loc = np.vstack((dy, dx, dh, dw)).transpose()
+
+	return loc
