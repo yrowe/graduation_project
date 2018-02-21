@@ -146,3 +146,49 @@ def bbox2loc(src_bbox, gt_bbox):
 	loc = np.vstack((dy, dx, dh, dw)).transpose()
 
 	return loc
+
+
+def bbox_iou(bbox_a, bbox_b):
+	'''
+	Calculate the intersection of Unions (IoUs) between bounding boxes.
+
+	IoU is calculated as a ratio of area of the intersection
+	and area of the union.
+
+	This function accepts `numpy.array` as inputs. 
+	The output is same type as the type of the inputs.
+
+	Args:
+		bbox_a(array): An array whose shape is `(N, 4)`.
+		    `N` represents the number of bounding boxes.
+		bbox_b(array): Another array whose shape is `(K, 4)`.
+			`K` represents the number of bounding boxes.
+
+	returns:
+		array:
+		An array whose shape is `math`(N, K)`.
+		An element at index :math:`(n, k)` contains IoUs between
+		`n`th bbox_a and `k`th bbox_b
+
+	'''
+
+	#top left
+	#top left's shape is (N, K, 2), where tl[n, k, :] represents
+	#the top left coordinates between `n`th roi and `k`th gt_bbox.
+	tl = np.maximum(bbox_a[:, None, :2], bbox_b[:, :2])
+
+	#bottom right
+	#similarly as top left
+	br = np.maximum(bbox_a[:, None, 2:], bbox_b[:, 2:])
+
+	#prod operation got the area of intersection,
+	# and a bool operation to filter someone that intersection equal 0.
+	area_i = np.prod(br-tl, axis=2)*(tl<br).all(axis=2)
+	area_a = np.prod(bbox_a[:,2:] - bbox_a[:,:2],axis=1)
+	area_b = np.prod(bbox_b[:,2:] - bbox_b[:,:2],axis=1)
+	return area_i /(area_a[:, None] + area_b - area_i)
+
+
+def generate_base_anchor(base_size=16, ratios=[0.5,1,2],
+							anchor_scales=[8,16,32]):
+	
