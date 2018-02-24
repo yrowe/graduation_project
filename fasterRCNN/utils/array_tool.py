@@ -16,7 +16,15 @@ def totensor(data, cuda=True):
 def tonumpy(data):
 	if isinstance(data, np.ndarray):
 		return data
-	if isinstance(data, t._TensorBase):
+	if isinstance(data, torch._TensorBase):
 		return data.cpu().numpy()
-	if isinstance(data, t._autograd.Variable):
+	if isinstance(data, torch._autograd.Variable):
 		return tonumpy(data.data)
+
+def tovariable(data):
+	if isinstance(data, np.ndarray):
+		return tovariable(totensor(data))
+	if isinstance(data, torch._TensorBase):
+		return t.autograd.Variable(data)
+	if isinstance(data, torch.autograd.Variable):
+		return data
