@@ -190,5 +190,43 @@ def bbox_iou(bbox_a, bbox_b):
 
 
 def generate_base_anchor(base_size=16, ratios=[0.5,1,2],
-							anchor_scales=[8,16,32]):
-	
+					    	anchor_scales=[8,16,32]):
+	'''
+	Args:
+		base_size(int): 
+			The width ad the height of the reference window.
+		
+		ratios(list of floats):
+			This is ratios of width to height of the anchors.
+			(ratios = height / width)
+		
+		anchor_scales(list of int): 
+			This is areas of anchors.
+		
+		NOTES: area of anchors are the product of the square of an element
+			which is in anchor_scales nad the original area of the reference window.
+
+
+	returns:
+		np.ndarray with shape`(R, 4)` ,typically R is 9
+		Each element is a set of four coordinates of a bounding box.
+		and with the order `(y_min, x_min, y_max, x_max)`
+	'''
+
+	ctr_y = base_size/2
+	ctr_x = base_size/2
+
+	anchor_base = np.zeros((len(ratios)*len(anchor_scales),4), dtype=np.float32)
+
+	for i in range(len(ratios)):
+		for j in range(len(anchor_scales)):
+			h = base_size * anchor_scales[j]*np.sqrt(ratios[i])
+			w = base_size * anchor_scales[j]*np.sqrt(1./ratios[i])
+
+			index = i*len(anchor_scales) + j
+			anchor_base[index, 0] = ctr_y - h/2
+			anchor_base[index, 1] = ctr_x - w/2
+			anchor_base[index, 2] = ctr_y + h/2
+			anchor_base[index, 3] = ctr_x + w/2
+
+	return anchor_base
