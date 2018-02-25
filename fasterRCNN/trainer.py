@@ -120,3 +120,50 @@ class FasterRCNNTrainer(nn.Module):
 		gt_rpn_loc = at.tovariable(gt_rpn_loc)
 
 		rpn_loc_loss = _fast_rcnn_loc_loss(rpn_loc, gt_rpn_loc, gt_rpn_label.data, self.rpn_sigma)   #!TODO private func `rpn_loc_loss`
+
+		roi_cls_loss = F.cross_entropy(rpn_score, gt_rpn_label.cuda(), ignore_index=-1)
+		_gt_rpn_label = gt_rpn_label[gt_rpn_label > -1]
+		_rpn_score = at.tonumpy(rpn_score)[at.tonumpy(gt_rpn_label)>-1]
+		self.rpn_cm.add(at.totensor())
+
+
+		#ROI loss
+		n_sample = roi_cls_loc.shape[0]
+		roi_cls_loc = roi_cls_loc.view(n_sample, -1, 4)
+		roi_loc = roi_cls_loc[torch.arange(0, n_sample).long().cuda(), at.totensor(gt_roi_label).long()]
+		gt_roi_label = at.tovariable(gt_roi_label).long()
+		gt_roi_loc = at.tovariable(gt_roi_loc)
+
+		roi_loc_loss = _fast_rcnn_loc_loss(roi_loc.contiguous(), gt_roi_loc, gt_roi_label.data, self.roi_sigma)
+
+		roi_cls_loss = nn.CrossEntropyLoss()(roi_score, gt_roi_label.cuda())
+
+		self.roi_cm.add(at.totensor(roi_score, False), gt_roi_label.data.long())
+
+		losses = [rpn_loc_loss, rpn_cls_loss, roi_loc_loss, roi_cls_loss]
+		losses = losses + [sum(losses)]       #? sum
+
+		return LossTuple(*losses)
+
+
+def _smooth_l1_loss():
+
+	#  ? SmoothLossLayer
+	sigma2 = sigma**2
+	diff = in_weight*(x-t)
+	abs_diff = diff.abs()
+	flag = (abs_diff.data < (1./sigma2)).float()
+	flag = Variable(flag)
+	y = (flag*(sigma2/2.)*(diff**2)+(1-flag)*(abs_diff-0.5/sigma2))
+	return y.sum()
+
+def _fast_rcnn_loc_loss(pred_loc, gt_loc, gt_label, sigma):
+	in_weight = torch.zeros(gt_loc.shape).cuda()
+	#Localization loss is calculated only for positive rois.
+
+	in_weight[(gt_label>0).view(-1,1).expand_as(in_weight).cuda()] = 1    #expand_as ?  transform to the same GPU.
+	loc_loss = _smooth_l1_loss(pred_loc, gt_loc, Variable(in_weight), sigma)
+
+	loc_loss /= (gt_label>=0).sum()
+
+	return loc_loss 
