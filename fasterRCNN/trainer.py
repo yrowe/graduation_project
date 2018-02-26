@@ -145,6 +145,40 @@ class FasterRCNNTrainer(nn.Module):
 
 		return LossTuple(*losses)
 
+	def reset_meters(self):
+		for key, meter in self.meters.items():
+			meter.reset()
+		self.roi_cm.reset()
+		self.rpn_cm.reset()
+
+	def train_step(self, imgs, bboxes, labels, scale):
+		self.optimizer.zero_grad()
+		losses = self.forward(imgs, bboxes, labels, scale)
+		losses.total_loss.backward()
+		self.optimizer.step()
+		self.update_meters(losses)
+		return losses
+
+	def save(self, save_optimizer=False, save_path=None, **kwargs):
+		save_dict = dict()
+		save_dict['model'] = self.faster_rcnn.state_dict()
+		save_dict['config'] = opt._state_dict()
+		save_dict['other_info'] = kwargs
+
+		if save_optimizer:
+			save_dict['optimizer'] = self.optimizer.state_dict()
+
+		if save_path is None:
+			timestr = time.strftime('%m%d%H%M')
+			save_path = 'checkpoints/fasterrcnn_%s'%timestr
+			for k_, v_ in kwargs.items():
+				save_path += '_%s'%v_
+
+		torch.save(save_dict, save_path)
+		return save_path
+
+	
+
 
 def _smooth_l1_loss():
 
