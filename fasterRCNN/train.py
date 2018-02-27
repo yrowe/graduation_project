@@ -53,7 +53,17 @@ def train(**kwargs):
 			trainer.train_step(img, bbox, label, scale)
 
 		eval_result = eval(test_dataloader, faster_rcnn, test_num=opt.test_num)
+		if eval_result['map'] > best_map:
+			best_map = eval_result['map']
+			best_path = trainer.save(best_map=best_map)
 
+		if epoch == 9:
+			trainer.load(best_path)
+			trainer.faster_rcnn.scale_lr(opt.lr_decay)
+			lr_ = lr_*opt.lr_decay
+
+		if epoch == 13:
+			break
 
 
 
@@ -79,3 +89,6 @@ def eval(dataloader, faster_rcnn, test_num=10000):
 				gt_bboxes,
 				gt_labels,
 				use_07_metric=True)
+
+	return result 
+
