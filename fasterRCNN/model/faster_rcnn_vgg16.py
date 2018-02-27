@@ -189,4 +189,4 @@ def normal_init(layer, mean, stddev):
 	'''
 
 	layer.weight.data.normal_(mean, stddev)
-	m.bias.data.zero_()
+	layer.bias.data.zero_()

@@ -1,16 +1,13 @@
-import os
 import fire
-import torch
-from torch
+
 from torch.autograd import Variable
 from torch.utils import data as data_
 from tqdm import tqdm 
 
-from data.dataset import Dataset, TestDataset, inverse_normalize
+from data.dataset import Dataset, TestDataset
 from utils.config import opt
 from model import FasterRCNNVGG16
 from utils import array_tool as at 
-from utils.vis_tool import visdom_bbox
 from utils.eval_tool import eval_detection_voc
 from trainer import FasterRCNNVGGTrainer
 
@@ -45,9 +42,9 @@ def train(**kwargs):
 
 	for epoch in range(opt.epoch):
 		trainer.reset_meters()
-		for ii, (img, bbox_, label_, scale) in tqdm(enuerate(dataloader)):
+		for ii, (img, bbox_, label_, scale) in tqdm(enumerate(dataloader)):
 			scale = at.scalar(scale)
-			img, bbox, label = img.cuda().float(), bbox_cuda(), label_.cuda()
+			img, bbox, label = img.cuda().float(), bbox_.cuda(), label_.cuda()
 			img, bbox, label = Variable(img), Variable(bbox), Variable(label)
 
 			trainer.train_step(img, bbox, label, scale)
@@ -73,7 +70,7 @@ def eval(dataloader, faster_rcnn, test_num=10000):
 
 	for ii, (imgs, sizes, gt_bboxes_, gt_labels_) in tqdm(enumerate(dataloader)):
 		sizes = [sizes[0][0], sizes[1][0]]
-		pred_bboxes_, pred_labels, pred_scores_ = faster_rcnn.predict(imgs, [sizes])
+		pred_bboxes_, pred_labels_, pred_scores_ = faster_rcnn.predict(imgs, [sizes])
 		gt_bboxes += list(gt_bboxes_.numpy())
 		gt_labels += list(gt_labels_.numpy())
 
@@ -91,4 +88,7 @@ def eval(dataloader, faster_rcnn, test_num=10000):
 				use_07_metric=True)
 
 	return result 
+
+if __name__ == '__main__':
+    fire.Fire()
 

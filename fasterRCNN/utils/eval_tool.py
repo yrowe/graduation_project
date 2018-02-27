@@ -1,5 +1,4 @@
 from collection import defaultdict
-import itertools
 import numpy as np 
 
 from model.utils.bbox_tools import bbox_iou

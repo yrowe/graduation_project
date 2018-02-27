@@ -4,10 +4,10 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 from torch.autograd import Variable
+import time
 
 from utils import array_tool as at
 from model.utils.creator_tool import AnchorTargetCreator, ProposalTargetCreator
-from utils.vis_tool import Visualizer
 
 from utils.config import opt
 from torchnet.meter import ConfusionMeter, AverageValueMeter
@@ -77,7 +77,6 @@ class FasterRCNNTrainer(nn.Module):
 			namedtuple of 5 losses.
 		'''
 
-		n = bboxes.shape[0]    #batch size = 1
 		_, _, H, W = imgs.shape
 		img_size = (H, W)
 
@@ -121,10 +120,10 @@ class FasterRCNNTrainer(nn.Module):
 
 		rpn_loc_loss = _fast_rcnn_loc_loss(rpn_loc, gt_rpn_loc, gt_rpn_label.data, self.rpn_sigma)   #!TODO private func `rpn_loc_loss`
 
-		roi_cls_loss = F.cross_entropy(rpn_score, gt_rpn_label.cuda(), ignore_index=-1)
+		rpn_cls_loss = F.cross_entropy(rpn_score, gt_rpn_label.cuda(), ignore_index=-1)
 		_gt_rpn_label = gt_rpn_label[gt_rpn_label > -1]
 		_rpn_score = at.tonumpy(rpn_score)[at.tonumpy(gt_rpn_label)>-1]
-		self.rpn_cm.add(at.totensor())
+		self.rpn_cm.add(at.totensor(_rpn_score, False), _gt_rpn_label.data.long())
 
 
 		#ROI loss
@@ -180,7 +179,7 @@ class FasterRCNNTrainer(nn.Module):
 	
 
 
-def _smooth_l1_loss():
+def _smooth_l1_loss(x, t, in_weight, sigma):
 
 	#  ? SmoothLossLayer
 	sigma2 = sigma**2

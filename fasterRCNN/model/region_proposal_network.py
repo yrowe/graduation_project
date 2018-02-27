@@ -1,5 +1,6 @@
 import torch.nn as nn
 import numpy as np
+from torch.nn import functional as F
 
 from model.utils.bbox_tools import generate_anchor_base
 from model.utils.creator_tool import ProposalCreator
@@ -132,7 +133,7 @@ def normal_init(layer, mean, stddev):
 	'''
 
 	layer.weight.data.normal_(mean, stddev)
-	m.bias.data.zero_()
+	layer.bias.data.zero_()
 
 
 def _generate_anchors_all(anchor_base, feat_stride, height, width):
@@ -152,7 +153,7 @@ def _generate_anchors_all(anchor_base, feat_stride, height, width):
 	'''
 	xx = np.arange(0, width*feat_stride, feat_stride)
 	yy = np.arange(0, height*feat_stride, feat_stride)
-	shitf_x, shift_y = np.meshgrid(xx, yy)            #the shapes of shift_x and shift_y are both (yy, xx)
+	shift_x, shift_y = np.meshgrid(xx, yy)            #the shapes of shift_x and shift_y are both (yy, xx)
 	shift = np.stack((shift_y.ravel(), shift_x.ravel(),
 					  shift_y.ravel(), shift_x.ravel()), axis=1)
 

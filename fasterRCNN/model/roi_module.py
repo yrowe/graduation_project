@@ -1,6 +1,8 @@
 from collections import namedtuple
 from string import Template
 
+import cupy
+
 import cupy as cp
 import torch
 import torch.nn as nn
@@ -21,13 +23,13 @@ def load_kernel(kernel_name,code,**kwargs):
 CUDA_NUM_THREADS = 1024
 
 def GET_BLOCKS(N, K=CUDA_NUM_THREADS):
-	return (N+K-1)//K
+    return (N+K-1)//K
 
 class RoI(Function):
 	def __init__(self, outh, outw, spatial_scale):
-		self.forward_fn = load_kernel('roi_forward', kernel_forward)
-		self.backward_fn = load_kernel('roi_backward', kernel_backward)
-		self.outh, self.outw, self.spatial_scale = outh, outw, spatial_scale
+        self.forward_fn = load_kernel('roi_forward', kernel_forward)
+        self.backward_fn = load_kernel('roi_backward', kernel_backward)
+        self.outh, self.outw, self.spatial_scale = outh, outw, spatial_scale
 
 	def forward(self, x, rois):
 		x = x.contiguous()
@@ -35,7 +37,7 @@ class RoI(Function):
 		self.in_size = B, C, H, W = x.size()
 		self.N = N = rois.size(0)
 		output = torch.zeros(N, C, self.outh, self.outw).cuda()
-		self.argmax_data = t.zeros(N, C, self.outh, self.outw).int().cuda()
+		self.argmax_data = torch.zeros(N, C, self.outh, self.outw).int().cuda()
 		self.rois = rois
 		args = [x.data_ptr(), rois.data_ptr(),
 					output.data_ptr(),
@@ -54,7 +56,7 @@ class RoI(Function):
 	def backward(self, grad_output):
 		grad_output = grad_output.contiguous()
 		B, C, H, W = self.in_size
-		grad_input = t.zeros(self.in_size).cuda()
+		grad_input = torch.zeros(self.in_size).cuda()
 		stream = Stream(ptr=torch.cuda.current_stream().cuda_stream)
 		args = [grad_output.data.ptr(),
 				self.argmax_data.data.ptr(),

@@ -1,6 +1,5 @@
 import numpy as np 
 
-
 def loc2bbox(src_bbox, loc):
 	'''Decoding bounding boxes from bounding box offsets and scales.
 
@@ -58,30 +57,30 @@ def loc2bbox(src_bbox, loc):
 
 	# got the offsets and scales from input `loc`
 	# for the purpose of simplification, we separate them.
-
+    
 	t_y = loc[:, 0]
-	t_x = loc[:, 1]    
- 	t_h = loc[:, 2]
- 	t_w = loc[:, 3]
+	t_x = loc[:, 1]
+	t_h = loc[:, 2]
+	t_w = loc[:, 3]
 
  	#shape `(R, )`
 
  	# then decode them to the center coordinates `ctr_y, ctr_x`
  	# and scales `h, w`
 
- 	ctr_y = t_y * p_h + p_y
- 	ctr_x = t_x * p_w + p_x
- 	h = np.exp(t_h) * p_h
- 	w = np.exp(t_w) * p_w
+	ctr_y = t_y * p_h + p_y
+	ctr_x = t_x * p_w + p_x
+	h = np.exp(t_h) * p_h
+	w = np.exp(t_w) * p_w
 
- 	roi = np.zeros(loc.shape, dtype=loc.dtype)
+	roi = np.zeros(loc.shape, dtype=loc.dtype)
 
- 	roi[:, 0:1] = (ctr_y - 0.5 * h)[:, np.newaxis]   #y_min
- 	roi[:, 1:2] = (ctr_x - 0.5 * w)[:, np.newaxis]   #x_min
- 	roi[:, 2:3] = (ctr_y + 0.5 * h)[:, np.newaxis]   #y_max
- 	roi[:, 3:4] = (ctr_x + 0.5 * w)[:, np.newaxis]   #x_max
+	roi[:, 0:1] = (ctr_y - 0.5 * h)[:, np.newaxis]   #y_min
+	roi[:, 1:2] = (ctr_x - 0.5 * w)[:, np.newaxis]   #x_min
+	roi[:, 2:3] = (ctr_y + 0.5 * h)[:, np.newaxis]   #y_max
+	roi[:, 3:4] = (ctr_x + 0.5 * w)[:, np.newaxis]   #x_max
 
- 	return roi
+	return roi
 
 
 def bbox2loc(src_bbox, gt_bbox):

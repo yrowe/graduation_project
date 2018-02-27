@@ -25,14 +25,14 @@ def tovariable(data):
 	if isinstance(data, np.ndarray):
 		return tovariable(totensor(data))
 	if isinstance(data, torch._TensorBase):
-		return t.autograd.Variable(data)
+		return torch.autograd.Variable(data)
 	if isinstance(data, torch.autograd.Variable):
 		return data
 
 def scalar(data):
 	if isinstance(data, np.ndarray):
 		return data.reshape(1)[0]
-	if isinstance(data, t._TensorBase):
+	if isinstance(data, torch._TensorBase):
 		return data.view(1)[0]
 
 	if isinstance(data, torch.autograd.Variable):

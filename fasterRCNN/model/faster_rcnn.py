@@ -2,9 +2,13 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F 
 import cupy as cp 
+import numpy as np
 
 from model.utils.bbox_tools import loc2bbox
 from utils.config import opt 
+from utils import array_tool as at
+from model.utils.nms import non_maximum_suppression
+
 
 
 class fasterRCNN(nn.Module):
