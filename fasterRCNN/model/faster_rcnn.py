@@ -7,11 +7,11 @@ import numpy as np
 from model.utils.bbox_tools import loc2bbox
 from utils.config import opt 
 from utils import array_tool as at
-from model.utils.nms import non_maximum_suppression
+from model.utils.nms.non_maximum_suppression import non_maximum_suppression
 
 
 
-class fasterRCNN(nn.Module):
+class FasterRCNN(nn.Module):
 	'''
 	this class is a cascade for the model faster_rcnn.
 	Args:
@@ -23,11 +23,19 @@ class fasterRCNN(nn.Module):
 				see more details in file(@TODO).
 
 	'''
-	def __init__(self, extractor, rpn, head):
-		super(fasterRCNN, self).__init__()
+	def __init__(self, extractor, rpn, head,
+					loc_normalize_mean=(0., 0., 0., 0.),
+					loc_normalize_std=(0.1, 0.1, 0.2, 0.2)):
+		super(FasterRCNN, self).__init__()
 		self.extractor = extractor
 		self.rpn = rpn
 		self.head = head
+
+		self.loc_normalize_mean = loc_normalize_mean
+		self.loc_normalize_std = loc_normalize_std
+
+		self.nms_thresh = 0.3
+		self.score_thresh = 0.05
 
 	@property
 	def n_class(self):

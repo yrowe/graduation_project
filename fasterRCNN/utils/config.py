@@ -8,7 +8,7 @@ class Config:
 
 	#sigma for l1_smooth_loss
 	rpn_sigma = 3.
-	rpn_sigma = 1.
+	roi_sigma = 1.
 
 	#param for optimizer
 	weight_decay = 0.0005

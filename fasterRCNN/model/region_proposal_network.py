@@ -108,7 +108,7 @@ class RegionProposalNetwork(nn.Module):
 				anchor, img_size, scale=scale
 				)
 
-		rois_indices = np.zero(len(rois, ),dtype=np.int32)
+		rois_indices = np.zeros(len(rois, ),dtype=np.int32)
 
 		return rpn_locs, rpn_scores, rois, rois_indices, anchor
 		

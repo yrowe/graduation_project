@@ -18,7 +18,7 @@ def tonumpy(data):
 		return data
 	if isinstance(data, torch._TensorBase):
 		return data.cpu().numpy()
-	if isinstance(data, torch._autograd.Variable):
+	if isinstance(data, torch.autograd.Variable):
 		return tonumpy(data.data)
 
 def tovariable(data):

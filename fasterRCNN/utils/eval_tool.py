@@ -1,4 +1,4 @@
-from collection import defaultdict
+from collections import defaultdict
 import numpy as np 
 
 from model.utils.bbox_tools import bbox_iou

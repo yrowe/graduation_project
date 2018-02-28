@@ -6,6 +6,7 @@ from model.faster_rcnn import FasterRCNN
 from model.region_proposal_network import RegionProposalNetwork
 from model.roi_module import RoIPooling2D
 from utils import array_tool as at 
+from utils.config import opt 
 
 
 class FasterRCNNVGG16(FasterRCNN):
@@ -27,7 +28,11 @@ class FasterRCNNVGG16(FasterRCNN):
 	def __init__(self, n_fg_class=20, ratios=[0.5, 1, 2], anchor_scales=[8, 16, 32]):
 		extractor, classifier = vgg16_decompose()
 
-		rpn = RegionProposalNetwork()   #all in default. and the diction variable refers to what?
+		rpn = RegionProposalNetwork(
+					512, 512,
+					ratios=ratios,
+					anchor_scales=anchor_scales,
+					feat_stride=self.feat_stride)   #all in default. and the diction variable refers to what?
 
 		head = VGG16RoIHead(
 					n_class=n_fg_class+1,
@@ -153,7 +158,7 @@ def vgg16_decompose():
 	)
 	'''
 	model = vgg16(pretrained=False)
-	model.load_state_dict(torch.load('checkpoints/vgg16-caffe.pth'))   #firstly fix to use caffe pretrained model. latter will add more optional choices.
+	model.load_state_dict(torch.load(opt.caffe_pretrain_path))   #firstly fix to use caffe pretrained model. latter will add more optional choices.
 
 	#processing features part.
 	features = list(model.features)[:-1]  #discard the last maxpooling layer of vgg16 features part.
@@ -167,8 +172,8 @@ def vgg16_decompose():
 	classifier = list(model.classifier)[:-1] #discard the last linear layer,which are used to classify task.
 
 	#since we expect to use customed dropout layer in RoI head. we fisrt delete the original implement of dropout.
-	del classifier[2]
 	del classifier[5]
+	del classifier[2]
 
 	return nn.Sequential(*features), nn.Sequential(*classifier)
 	

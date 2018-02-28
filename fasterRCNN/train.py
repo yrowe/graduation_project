@@ -6,10 +6,10 @@ from tqdm import tqdm
 
 from data.dataset import Dataset, TestDataset
 from utils.config import opt
-from model import FasterRCNNVGG16
+from model.faster_rcnn_vgg16 import FasterRCNNVGG16
 from utils import array_tool as at 
 from utils.eval_tool import eval_detection_voc
-from trainer import FasterRCNNVGGTrainer
+from trainer import FasterRCNNTrainer
 
 def train(**kwargs):
 	opt._parse(kwargs)
@@ -30,7 +30,7 @@ def train(**kwargs):
 	faster_rcnn = FasterRCNNVGG16()
 	print('model construct completed')
 
-	trainer = FasterRCNNVGGTrainer(faster_rcnn).cuda()
+	trainer = FasterRCNNTrainer(faster_rcnn).cuda()
 
 	if opt.load_path:
 		trainer.load(opt.load_path)  # !TODO
