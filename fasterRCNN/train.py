@@ -62,6 +62,26 @@ def train(**kwargs):
 		if epoch == 13:
 			break
 
+def test(**kwargs):
+	opt._parse(kwargs)
+	dataset = Dataset(opt)
+	print('load data')
+	testset = TestDataset(opt)
+	test_dataloader = data_.DataLoader(testset,
+									   batch_size=1,
+									   num_workers=opt.num_workers,
+									   shuffle=False
+									   )
+	faster_rcnn = FasterRCNNVGG16()
+	print('model construct completed')
+
+	trainer = FasterRCNNTrainer(faster_rcnn).cuda()
+	best_map = 0
+	lr_ = opt.lr
+	trainer.reset_meters()
+	eval_result = eval(test_dataloader, faster_rcnn, test_num=opt.test_num)
+	print('test over')
+
 
 
 def eval(dataloader, faster_rcnn, test_num=10000):

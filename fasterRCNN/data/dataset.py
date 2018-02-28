@@ -71,7 +71,7 @@ class TestDataset:
 		self.opt = opt
 		self.db = VOCBboxDataset(opt.voc_data_dir, split='test')
 	def __getitem__(self, idx):
-		ori_img, bbox, label, difficult = self.db.get_example(idx)
+		ori_img, bbox, label = self.db.get_example(idx)
 		img = preprocess(ori_img)
 		return img, ori_img.shape[1:], bbox, label
 
