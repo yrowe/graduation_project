@@ -158,6 +158,11 @@ class FasterRCNNTrainer(nn.Module):
 		self.update_meters(losses)
 		return losses
 
+	def update_meters(self, losses):
+		loss_d = {k:at.scalar(v) for k,v in losses._asdict().items()}
+		for key, meter in self.meters.items():
+			meter.add(loss_d[key])
+
 	def save(self, save_optimizer=False, save_path=None, **kwargs):
 		save_dict = dict()
 		save_dict['model'] = self.faster_rcnn.state_dict()
@@ -175,6 +180,20 @@ class FasterRCNNTrainer(nn.Module):
 
 		torch.save(save_dict, save_path)
 		return save_path
+
+	def load(self, path, load_optimizer=True, parse_opt=False):
+		state_dict = torch.load(path)
+		if 'model' in state_dict:
+			self.faster_rcnn.load_state_dict(state_dict['model'])
+		else:
+			self.faster_rcnn.load_state_dict(state_dict)
+			return self
+
+		if parse_opt:
+			opt._parse(state_dict['config'])
+		if 'optimizer' in state_dict and load_optimizer:
+			self.optimizer.load_state_dict(state_dict['optimizer'])
+		return self
 
 	
 

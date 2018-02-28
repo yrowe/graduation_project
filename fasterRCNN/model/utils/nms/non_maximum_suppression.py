@@ -2,29 +2,15 @@ from __future__ import division
 import numpy as np
 import cupy as cp
 import torch as t
-
-def _nms_gpu_post( mask,
-                  n_bbox,
-                   threads_per_block,
-                   col_blocks
-                  ):
-    n_selection = 0
-    one_ull = np.array([1],dtype=np.uint64)
-    selection = np.zeros((n_bbox,), dtype=np.int32)
-    remv = np.zeros((col_blocks,), dtype=np.uint64)
-
-    for i in range(n_bbox):
-        nblock = i // threads_per_block
-        inblock = i % threads_per_block
-
-        if not (remv[nblock] & one_ull << inblock):
-            selection[n_selection] = i
-            n_selection += 1
-
-            index = i * col_blocks
-            for j in range(nblock, col_blocks):
-                remv[j] |= mask[index + j]
-    return selection, n_selection
+try:
+    from ._nms_gpu_post import _nms_gpu_post
+except:
+    import warnings
+    warnings.warn('''
+    the python code for non_maximum_suppression is about 2x slow
+    It is strongly recommended to build cython code: 
+    `cd model/utils/nms/; python3 build.py build_ext --inplace''')
+    from ._nms_gpu_post_py import _nms_gpu_post
 
 
 @cp.util.memoize(for_each_device=True)

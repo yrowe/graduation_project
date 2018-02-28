@@ -218,7 +218,7 @@ class ProposalTargetCreator(object):
 		pos_roi_per_this_image = int(min(pos_roi_per_image, pos_index.size))
 		if pos_index.size > 0:
 			pos_index = np.random.choice(
-				pos_index, size=pos_roi_per_image, replace=False)
+				pos_index, size=pos_roi_per_this_image, replace=False)
 
 		#select background RoIs as those IoU in
 		# [neg_iou_thresh_lower, neg_iou_thresh_upper).
@@ -316,10 +316,10 @@ class AnchorTargetCreator(object):
 		label[max_ious < self.neg_iou_thresh] = 0
 
 		#positive label: in case max_iou greater than pos thresh
-		label[max_ious >= self.pos_ious_thresh] = 1
+		label[max_ious >= self.pos_iou_thresh] = 1
 
 		#positive label: in case for each gt, anchor with highest iou
-		label[gt_argmax_iou] = 1
+		label[gt_argmax_ious] = 1
 
 		#subsample 
 		n_pos = int(self.pos_ratio*self.n_sample)
