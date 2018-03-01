@@ -8,6 +8,7 @@ from model.utils.bbox_tools import loc2bbox
 from utils.config import opt 
 from utils import array_tool as at
 from model.utils.nms.non_maximum_suppression import non_maximum_suppression
+from data.dataset import preprocess 
 
 
 
@@ -102,7 +103,7 @@ class FasterRCNN(nn.Module):
 
 
 
-	def predict(self, imgs, sizes=None):
+	def predict(self, imgs, sizes=None, visualize=False):
 		'''
 		Detect objects from images.
 
@@ -122,7 +123,20 @@ class FasterRCNN(nn.Module):
 
 		self.eval()
 
-		prepared_imgs = imgs
+		if visualize:
+			self.nms_thresh = 0.3
+			self.score_thresh = 0.7
+			prepared_imgs = list()
+			sizes = list()
+			for img in imgs:
+				size = img.shape[1:]
+				img = preprocess(at.tonumpy(img))
+				prepared_imgs.append(img)
+				sizes.append(size)
+		else:
+			prepared_imgs = imgs
+
+
 		bboxes = list()
 		labels = list()
 		scores = list()

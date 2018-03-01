@@ -90,7 +90,7 @@ def test(**kwargs):
     lr_ = opt.lr
     trainer.reset_meters()
     eval_result = eval(test_dataloader, faster_rcnn, test_num=opt.test_num)
-    print('test over')
+    print('\ntest over, the score is {}'.format(eval_result))
 
 def eval(dataloader, faster_rcnn, test_num=10000):
 	pred_bboxes, pred_labels, pred_scores = list(), list(), list()

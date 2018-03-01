@@ -1,5 +1,6 @@
 from collections import defaultdict
 import numpy as np 
+import itertools
 
 from model.utils.bbox_tools import bbox_iou
 
@@ -62,103 +63,104 @@ def eval_detection_voc(
 
 
 
-def calc_detection_voc_prec_rec(pred_bboxes, pred_labels, pred_scores,
-								gt_bboxes, gt_labels, iou_thresh=0.5):
-	pred_bboxes = iter(pred_bboxes)
-	pred_labels = iter(pred_labels)
-	pred_scores = iter(pred_scores)
+def calc_detection_voc_prec_rec(
+        pred_bboxes, pred_labels, pred_scores, gt_bboxes, gt_labels,
+        iou_thresh=0.5):
 
-	gt_bboxes = iter(gt_bboxes)
-	gt_labels = iter(gt_labels)
+    pred_bboxes = iter(pred_bboxes)
+    pred_labels = iter(pred_labels)
+    pred_scores = iter(pred_scores)
+    gt_bboxes = iter(gt_bboxes)
+    gt_labels = iter(gt_labels)
+    gt_difficults = itertools.repeat(None)
 
-	gt_difficults = iter(None)
+    n_pos = defaultdict(int)
+    score = defaultdict(list)
+    match = defaultdict(list)
 
-	n_pos = defaultdict(int)
-	score = defaultdict(list)
-	match = defaultdict(list)
+    for pred_bbox, pred_label, pred_score, gt_bbox, gt_label, gt_difficult in zip(
+                pred_bboxes, pred_labels, pred_scores,
+                gt_bboxes, gt_labels, gt_difficults):
 
-	iter_zip = zip(pred_bboxes, pred_labels, pred_scores, gt_bboxes, gt_labels, gt_difficults)
+        if gt_difficult is None:
+            gt_difficult = np.zeros(gt_bbox.shape[0], dtype=bool)
 
-	for pred_bbox, pred_label, pred_score, gt_bbox, gt_label, gt_difficult in iter_zip:
-		
-		gt_difficult = np.zeros(gt_bbox.shape[0], dtype=bool)
+        for l in np.unique(np.concatenate((pred_label, gt_label)).astype(int)):
+            pred_mask_l = pred_label == l
+            pred_bbox_l = pred_bbox[pred_mask_l]
+            pred_score_l = pred_score[pred_mask_l]
+            # sort by score
+            order = pred_score_l.argsort()[::-1]
+            pred_bbox_l = pred_bbox_l[order]
+            pred_score_l = pred_score_l[order]
 
-		for l in np.unique(np.concatenate((pred_label, gt_label)).astype(int)):
-			pred_mask_l = pred_label == 1
-			pred_bbox_l = pred_bbox[pred_mask_l]
-			pred_score_l = pred_score[pred_mask_l]
+            gt_mask_l = gt_label == l
+            gt_bbox_l = gt_bbox[gt_mask_l]
+            gt_difficult_l = gt_difficult[gt_mask_l]
 
-			order = pred_score_l.argsort()[::-1]
-			pred_bbox_l = pred_bbox_l[order]
-			pred_score_l = pred_score_l[order]
+            n_pos[l] += np.logical_not(gt_difficult_l).sum()
+            score[l].extend(pred_score_l)
 
-			gt_mask_l = gt_label == 1
-			gt_bbox_l = gt_bbox[gt_mask_l]
-			gt_difficult_l = gt_difficult[gt_mask_l]
+            if len(pred_bbox_l) == 0:
+                continue
+            if len(gt_bbox_l) == 0:
+                match[l].extend((0,) * pred_bbox_l.shape[0])
+                continue
 
-			n_pos[l] += np.logical_not(gt_difficult_l).sum()
-			score[l].extend(pred_score_l)
+            # VOC evaluation follows integer typed bounding boxes.
+            pred_bbox_l = pred_bbox_l.copy()
+            pred_bbox_l[:, 2:] += 1
+            gt_bbox_l = gt_bbox_l.copy()
+            gt_bbox_l[:, 2:] += 1
 
-			if len(pred_bbox_l) == 0:
-				continue
-			if len(gt_bbox_l) == 0:
-				match[l].extend((0, )*pred_bbox_l.shape[0])
-				continue
+            iou = bbox_iou(pred_bbox_l, gt_bbox_l)
+            gt_index = iou.argmax(axis=1)
+            # set -1 if there is no matching ground truth
+            gt_index[iou.max(axis=1) < iou_thresh] = -1
+            del iou
 
-			# VOC evaluation follows integer typed bounding boxes.
-			pred_bbox_l = pred_bbox_l.copy()
-			pred_bbox_l[:, 2:] += 1
-			gt_bbox_l = gt_bbox_l.copy()
-			gt_bbox[:, 2:] += 1
+            selec = np.zeros(gt_bbox_l.shape[0], dtype=bool)
+            for gt_idx in gt_index:
+                if gt_idx >= 0:
+                    if gt_difficult_l[gt_idx]:
+                        match[l].append(-1)
+                    else:
+                        if not selec[gt_idx]:
+                            match[l].append(1)
+                        else:
+                            match[l].append(0)
+                    selec[gt_idx] = True
+                else:
+                    match[l].append(0)
 
-			iou = bbox_iou(pred_bbox_l, gt_bbox_l)
-			gt_index = iou.argmax(axis = 1)
-			#set -1 if there is no matching ground truth
-			gt_index[iou.max(axis=1) < iou_thresh] = -1
-			del iou
+    for iter_ in (
+            pred_bboxes, pred_labels, pred_scores,
+            gt_bboxes, gt_labels, gt_difficults):
+        if next(iter_, None) is not None:
+            raise ValueError('Length of input iterables need to be same.')
 
-			selec = np.zeros(gt_bbox_l.shape[0], dtype=bool)
-			for gt_idx in gt_index:
-				if gt_idx >= 0:
-					if gt_difficult_l[gt_idx]:
-						match[1].append(-1)
-					else:
-						if not selec[gt_idx]:
-							match[1].append(1)
-						else:
-							match[1].append(0)
-				selec[gt_idx] = True
+    n_fg_class = max(n_pos.keys()) + 1
+    prec = [None] * n_fg_class
+    rec = [None] * n_fg_class
 
-			else:
-				match[1].append(0)
+    for l in n_pos.keys():
+        score_l = np.array(score[l])
+        match_l = np.array(match[l], dtype=np.int8)
 
-	for iter_ in (pred_bboxes, pred_labels, pred_scores, gt_bboxes, gt_labels, gt_difficults):
-		if next(iter_, None) is not None:
-			raise ValueError('Length of input iterables need to be same')
+        order = score_l.argsort()[::-1]
+        match_l = match_l[order]
 
-	n_fg_class = max(n_pos.keys()) + 1
-	prec = [None]*n_fg_class
-	rec = [None]*n_fg_class
+        tp = np.cumsum(match_l == 1)
+        fp = np.cumsum(match_l == 0)
 
-	for l in n_pos.keys():
-		score_l = np.array(score[l])
-		match_l = np.array(match[l], dtype=np.int8)
+        # If an element of fp + tp is 0,
+        # the corresponding element of prec[l] is nan.
+        prec[l] = tp / (fp + tp)
+        # If n_pos[l] is 0, rec[l] is None.
+        if n_pos[l] > 0:
+            rec[l] = tp / n_pos[l]
 
-		order = score_l.argsort()[::-1]
-		match_l = match_l[order]
-
-		tp = np.cumsum(match_l == 1)
-		fp = np.cumsum(match_l == 0)
-
-		# If an element of fp+tp is 0,
-		# the corresponding element of prec[1] is nan.
-
-		prec[l] = tp/(fp + tp)
-		#If n_pos[l] is 0, rec[l] is None
-		if n_pos[l] > 0:
-			rec[l] = tp / n_pos[l]
-
-	return prec, rec 
+    return prec, rec
 
 
 def calc_detection_voc_ap(prec, rec, use_07_metric=False):

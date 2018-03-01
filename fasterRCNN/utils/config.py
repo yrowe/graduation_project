@@ -47,9 +47,9 @@ class Config:
 				raise ValueError('Unknown Option: "--%s"'%k)
 			setattr(self, k, v)
 
-		print('============user config==========')
-		pprint(self._state_dict())
-		print('===============end===============')
+			print('=======use customed config======')
+			pprint(k, v)
+			print('===============end===============')
 
 	def _state_dict(self):
 		return {k: getattr(self, k) for k, _ in Config.__dict__.items() if not k.startswith('_')}
