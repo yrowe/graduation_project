@@ -41,10 +41,14 @@ def read_image(path, dtype=np.float32):
 
 	'''
 
-	f = Image.open(path)  
-	img = f.convert('RGB')
-	img = np.asarray(img, dtype=dtype)
-	f.close()
+	f = Image.open(path)
+	try:
+
+		img = f.convert('RGB')
+		img = np.asarray(img, dtype=dtype)
+	finally:
+		if hasattr(f, 'close'):
+			f.close()
 
 	# (H, W, C) --> (C, H, W)
 	return img.transpose((2, 0, 1))

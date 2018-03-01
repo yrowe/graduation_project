@@ -1,15 +1,23 @@
+import os
 import fire
 
+import ipdb
+import matplotlib
+from tqdm import tqdm
+
+from utils.config import opt
+from data.dataset import Dataset, TestDataset
+from model.faster_rcnn_vgg16 import FasterRCNNVGG16
 from torch.autograd import Variable
 from torch.utils import data as data_
-from tqdm import tqdm 
-
-from data.dataset import Dataset, TestDataset
-from utils.config import opt
-from model.faster_rcnn_vgg16 import FasterRCNNVGG16
-from utils import array_tool as at 
-from utils.eval_tool import eval_detection_voc
 from trainer import FasterRCNNTrainer
+from utils import array_tool as at
+from utils.eval_tool import eval_detection_voc
+
+import resource
+rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
+resource.setrlimit(resource.RLIMIT_NOFILE, (20480, rlimit[1]))
+
 
 def train(**kwargs):
 	opt._parse(kwargs)
@@ -63,26 +71,26 @@ def train(**kwargs):
 			break
 
 def test(**kwargs):
-	opt._parse(kwargs)
-	dataset = Dataset(opt)
-	print('load data')
-	testset = TestDataset(opt)
-	test_dataloader = data_.DataLoader(testset,
-									   batch_size=1,
-									   num_workers=opt.num_workers,
-									   shuffle=False
-									   )
-	faster_rcnn = FasterRCNNVGG16()
-	print('model construct completed')
+    opt._parse(kwargs)
+    dataset = Dataset(opt)
+    print('load data')
+    testset = TestDataset(opt)
+    test_dataloader = data_.DataLoader(testset,
+                                       batch_size=1,
+                                       num_workers=opt.num_workers,
+                                       shuffle=False
+                                       )
+    faster_rcnn = FasterRCNNVGG16()
+    print('model construct completed')
 
-	trainer = FasterRCNNTrainer(faster_rcnn).cuda()
-	best_map = 0
-	lr_ = opt.lr
-	trainer.reset_meters()
-	eval_result = eval(test_dataloader, faster_rcnn, test_num=opt.test_num)
-	print('test over')
-
-
+    trainer = FasterRCNNTrainer(faster_rcnn).cuda()
+    trainer.load('/home/wrc/fasterrcnn_0.712.pth')
+    print('pretrained model loaded')
+    best_map = 0
+    lr_ = opt.lr
+    trainer.reset_meters()
+    eval_result = eval(test_dataloader, faster_rcnn, test_num=opt.test_num)
+    print('test over')
 
 def eval(dataloader, faster_rcnn, test_num=10000):
 	pred_bboxes, pred_labels, pred_scores = list(), list(), list()
