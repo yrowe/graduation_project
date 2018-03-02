@@ -4,15 +4,15 @@ import fire
 import ipdb
 import matplotlib
 from tqdm import tqdm
-
-from utils.config import opt
-from data.dataset import Dataset, TestDataset
-from model.faster_rcnn_vgg16 import FasterRCNNVGG16
 from torch.autograd import Variable
 from torch.utils import data as data_
-from trainer import FasterRCNNTrainer
-from utils import array_tool as at
-from utils.eval_tool import eval_detection_voc
+
+from tools.config import opt
+from tools.dataset import Dataset, TestDataset
+from lib.VGG16.faster_rcnn_vgg16 import FasterRCNNVGG16
+from lib.cascade.trainer import FasterRCNNTrainer
+from tools import array_tool as at
+from tools.eval_tool import eval_detection_voc
 
 import resource
 rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)

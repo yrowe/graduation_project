@@ -4,11 +4,11 @@ from torch.nn import functional as F
 import cupy as cp 
 import numpy as np
 
-from model.utils.bbox_tools import loc2bbox
-from utils.config import opt 
-from utils import array_tool as at
-from model.utils.nms.non_maximum_suppression import non_maximum_suppression
-from data.dataset import preprocess 
+from lib.utils.bbox_tools import loc2bbox
+from tools.config import opt 
+from tools import array_tool as at
+from lib.NMS.non_maximum_suppression import non_maximum_suppression
+from tools.dataset import preprocess 
 
 
 

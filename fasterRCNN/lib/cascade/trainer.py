@@ -5,12 +5,13 @@ import torch.nn.functional as F
 from torch import nn
 from torch.autograd import Variable
 import time
-
-from utils import array_tool as at
-from model.utils.creator_tool import AnchorTargetCreator, ProposalTargetCreator
-
-from utils.config import opt
 from torchnet.meter import ConfusionMeter, AverageValueMeter
+
+from tools import array_tool as at
+from lib.utils.creator_tool import AnchorTargetCreator, ProposalTargetCreator
+
+from tools.config import opt
+
 
 LossTuple = namedtuple('LossTuple',
 						['rpn_loc_loss',
