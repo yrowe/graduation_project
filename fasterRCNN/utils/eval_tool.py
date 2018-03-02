@@ -5,7 +5,7 @@ import itertools
 from model.utils.bbox_tools import bbox_iou
 
 def eval_detection_voc(
-		pred_bboxes, pred_labels, pred_scores, gt_bboxes, gt_labels,
+		pred_bboxes, pred_labels, pred_scores, gt_bboxes, gt_labels,gt_difficults=None,
 		iou_thresh=0.5,use_07_metric=False):
 	'''
 	Calculate average precision based on evaluation code of PASCAL VOC.
@@ -55,7 +55,7 @@ def eval_detection_voc(
 
 	prec, rec = calc_detection_voc_prec_rec(
 		pred_bboxes, pred_labels, pred_scores,
-		gt_bboxes, gt_labels, iou_thresh=iou_thresh)
+		gt_bboxes, gt_labels, gt_difficults, iou_thresh=iou_thresh)
 
 	ap = calc_detection_voc_ap(prec, rec, use_07_metric=use_07_metric)
 
@@ -64,7 +64,7 @@ def eval_detection_voc(
 
 
 def calc_detection_voc_prec_rec(
-        pred_bboxes, pred_labels, pred_scores, gt_bboxes, gt_labels,
+        pred_bboxes, pred_labels, pred_scores, gt_bboxes, gt_labels, gt_difficults=None,
         iou_thresh=0.5):
 
     pred_bboxes = iter(pred_bboxes)
@@ -72,7 +72,10 @@ def calc_detection_voc_prec_rec(
     pred_scores = iter(pred_scores)
     gt_bboxes = iter(gt_bboxes)
     gt_labels = iter(gt_labels)
-    gt_difficults = itertools.repeat(None)
+    if gt_difficults is None:
+        gt_difficults = itertools.repeat(None)
+    else:
+        gt_difficults = iter(gt_difficults)
 
     n_pos = defaultdict(int)
     score = defaultdict(list)
