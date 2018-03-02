@@ -178,7 +178,7 @@ def bbox_iou(bbox_a, bbox_b):
 
 	#bottom right
 	#similarly as top left
-	br = np.maximum(bbox_a[:, None, 2:], bbox_b[:, 2:])
+	br = np.minimum(bbox_a[:, None, 2:], bbox_b[:, 2:])
 
 	#prod operation got the area of intersection,
 	# and a bool operation to filter someone that intersection equal 0.

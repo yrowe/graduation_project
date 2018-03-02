@@ -89,7 +89,7 @@ def test(**kwargs):
     best_map = 0
     lr_ = opt.lr
     trainer.reset_meters()
-    eval_result = eval(test_dataloader, faster_rcnn, test_num=opt.test_num)
+    eval_result = eval(test_dataloader, faster_rcnn, test_num=100)
     print('\ntest over, the score is {}'.format(eval_result))
 
 def eval(dataloader, faster_rcnn, test_num=10000):

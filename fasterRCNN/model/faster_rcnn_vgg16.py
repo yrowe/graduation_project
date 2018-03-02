@@ -94,7 +94,7 @@ class VGG16RoIHead(nn.Module):
 		indices_and_rois = torch.cat([roi_indices[:, None],rois],dim=1)
 		#(B, ymin, xmin, ymax, xmax) -> (B, xmin, ymin, xmax, ymax)
 		xy_indices_and_rois = indices_and_rois[:, [0,2,1,4,3]]
-		indices_and_rois = torch.autograd.Variable(xy_indices_and_rois)
+		indices_and_rois = torch.autograd.Variable(xy_indices_and_rois.contiguous())
 
 		pool = self.roi(x, indices_and_rois)   #128*512*7*7    after RoI pooling layer
 		pool = pool.view(pool.size(0), -1)     #128 * 25088  inorder to share weight.
