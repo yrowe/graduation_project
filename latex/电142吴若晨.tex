@@ -79,7 +79,7 @@
 \begin{abstract}
 \qquad 行人检测，是利用计算机视觉技术在静态图像或动态视频序列中，查找并定位行人的算法。由于其应用方向广，挑战难度大，所有学术工业界均有着深入的研究。
 传统行人检测算法，如Hog+SVM法，主要使用如下流程：提取静态特征（边缘特征，统计特征等），滑动窗口分类行人，但传统算法仍有许多不足：对模糊图像识别效果差，不能准确定位，漏识别，错识别概率高。\par
-自Alexnet于2012年在ImageNet竞赛大放异彩开始，深度学习开始受到人们的广泛关注。其中深度卷积神经网络，由于其强大的特征提取特性，在计算机视觉各个方面上，都对传统方法实现了超越。
+自Alexnet于2012年在ImageNet竞赛大放异彩开始，深度学习开始受到人们的广泛关注。其中深度卷积神经网络，由于其强大的特征提取特性，在计算机视觉各个方面上，都对传统方法实现了超越。各种多类物体检测算法在深度学习的帮助下都实现了质的突破。
 另一方面，深度卷积网络对数据集要求非常高，很多算法都是在小数据集上没法训练出令人满意的结果，所以研究人员通常采用的是迁移学习中微调的技术，首先在大型数据集上（如ImageNet）进行预训练，之后在得到的网络模型上再使用自身数据集进行训练，这样往往能够保证效果。\par
 本毕设的构想是通过复现基于深度卷积网络的几个物体检测算法，如Faster-RCNN,YOLO,SSD，利用微调技术，将它们迁移至行人检测任务上来，并期望相较迁移学习前的算法，行人检测部分性能有所提升。
 \begin{center}
@@ -113,28 +113,25 @@ Besides compared to the original object detection algorithm, these transformed m
 \section{绪论}
 \subsection{研究背景及意义}
 \subsubsection{研究背景}
-行人检测作为计算机视觉中的一个经典的主题，其在学术界和工业界一直有着广泛的研究和应用。现有的行人检测方法主要为一些非深度方法，这些方法进一步又可分为基于背景建模的方法和基于机器学习的方法。背景建模法通过建立背景模型，利用背景减分割出前景，进一步判断和提取其中的行人目标。这类方法的抗干扰能力不强，难以处理背景的动态变化以及摄像头运动下拍摄的动态场景。而机器学习的方法，则是从大量训练样本中提取特征来构建行人分类器或者检测器\upcite{邵松2014基于迁移学习的行人检测研究进展}。总的来说，这些机器学习方法还停留在特征工程结合分类器的层面上，首先使用一系列手工特征的组合，如Integral channel features\upcite{dollar2009integral}，HoG\upcite{dalal2005histograms}以及它们的变体\upcite{felzenszwalb2010object,schwartz2009human}，再将这些提取的特征送入诸如SVM\upcite{felzenszwalb2010object}，随机森林\upcite{dollar2012crosstalk}等分类器进行训练与测试。相较于背景建模的方法，机器学习方法对动态场景有着更强的鲁棒性和更低的误检率。然而，由于受限于浅层特征的表达能力，传统基于机器学习的行人检测算法，往往泛化能力较差，如果适用的场景与训练数据集差异很大，则这些方法的性能会急剧下降，为了解决问题，需要重新采集和标注大量的数据样本，耗时耗力，且若场景再次切换，需要重复如上工作。关于如何解决这个问题，学术界也对相应的机器学习方法细节进行了研究\upcite{邵松2014基于迁移学习的行人检测研究进展}。另外机器学习工业界广为流传着这样一句话：“数据和特征决定了机器学习的上限，而模型和算法只是逼近这个上限而已”，挖掘更高层次的特征，成为解决检测问题一大重要方向。\par
-另一个方面，深度学习曾作为神经网络被我们广为熟知，在20世纪80年代流行过一阵，取到了相对较小的成功。但由于其收敛原因缺乏理论证明，深层网络对算力要求高等缺陷，而渐渐被研究人员抛弃。现如今随着与日俱增的数据量和不断增强的计算力，我们拥有的计算资源可以运行更大的模型，深度学习的精确识别和预测能力也一直在提高。深度卷积网络作为深度学习的一个子集，具有强大的特征提取能力，而这一特性，恰好适合计算机视觉中各类图像任务。关于深度学习能力的一个粗略的经验法则是：监督深度学习算法在每类给定约5000个标注样本情况下一般将达到可接受的性能，当至少有1000万个标注样本的数据集用于训练时，它将达到或超过人类表现\upcite{Goodfellow-et-al-2016}。深度学习随着卷积网络AlexNet\upcite{krizhevsky2012imagenet}在ImageNet竞赛大放异彩而迅速崛起，随后卷积网络在图像识别\upcite{simonyan2014very,he2016deep}，物体检测\upcite{ren15fasterrcnn,redmon2016you,liu2016ssd}等各个方向实现了对传统方法的超越。特定到行人检测的深度学习方法，也有相关的研究\upcite{sermanet2013pedestrian}。关于神经网络和卷积网络，可参考本毕业设计于附录部分的简单介绍。
+行人检测作为计算机视觉中的一个经典的主题，其在学术界和工业界一直有着广泛的研究和应用。现有的行人检测方法主要为一些非深度方法，这些方法进一步又可分为基于背景建模的方法和基于机器学习的方法。背景建模法通过建立背景模型，利用背景减分割出前景，进一步判断和提取其中的行人目标。这类方法的抗干扰能力不强，难以处理背景的动态变化以及摄像头运动下拍摄的动态场景。而机器学习的方法则可归纳为特征工程结合分类器，首先使用一系列手工特征的组合，如Integral channel features\upcite{dollar2009integral}，HoG\upcite{dalal2005histograms}以及它们的变体\upcite{felzenszwalb2010object,schwartz2009human}，再将这些提取的特征送入诸如SVM\upcite{felzenszwalb2010object}，随机森林\upcite{dollar2012crosstalk}等分类器进行训练与测试。相较于背景建模的方法，机器学习方法对动态场景有着更强的鲁棒性和更低的误检率。然而，由于受限于浅层特征的表达能力，传统基于机器学习的行人检测算法，往往泛化能力较差，如果适用的场景与训练数据集差异很大，则这些方法的性能会急剧下降。为了解决问题，需要重新采集和标注大量的数据样本，耗时耗力，且若场景再次切换，需要重复如上工作。关于如何解决这个问题，学术界也对相应的机器学习方法细节进行了改进\upcite{邵松2014基于迁移学习的行人检测研究进展}。另外机器学习工业界广为流传着这样一句话：“数据和特征决定了机器学习的上限，而模型和算法只是逼近这个上限而已”，所以挖掘更高层次的特征，是解决检测问题一大重要方向。\par
+另一方面，深度学习曾作为神经网络被我们广为熟知，在20世纪80年代流行过一阵，取到了相对较小的成功。然而在之后的几年里，神经网络被许多其他方法超越。神经网络训练慢，并且就深度神经网络从一个随机生成的权重起点开始训练是否可行，学术界没有达成广泛的一致，渐渐地被研究人员抛弃。现如今随着与日俱增的数据量和不断增强的计算力，我们拥有的计算资源可以运行更大的模型，深度学习的精确识别和预测能力也一直在提高。深度卷积神经网络作为深度学习的一个子集，具有强大的特征提取能力，而这一特性，恰好适合计算机视觉中各类图像任务。关于深度学习能力的一个粗略的经验法则是：监督深度学习算法在每类给定约5000个标注样本情况下一般将达到可接受的性能，当至少有1000万个标注样本的数据集用于训练时，它将达到或超过人类表现\upcite{Goodfellow-et-al-2016}。深度学习随着卷积网络AlexNet\upcite{krizhevsky2012imagenet}在ImageNet竞赛大放异彩而迅速崛起，随后卷积网络在图像识别\upcite{simonyan2014very,he2016deep}，物体检测\upcite{ren15fasterrcnn,redmon2016you,liu2016ssd}等各个方向实现了对传统方法的超越。特定到行人检测的深度学习方法，也有相关的研究\upcite{sermanet2013pedestrian}。关于神经网络和卷积网络的相关概念，可参考本毕业设计于附录A部分的简单介绍。
 
 本课设旨在从深度学习中卷积神经网络的角度切入，改善非深度方法中对模糊图像处理乏力，泛化能力不强的缺陷。并相较传统方法，达到更高的准确率，和更低的漏检，错检率。 
 \subsubsection{研究意义}
+行人检测作为计算机视觉长久以来的热门话题，其早已有着实际应用，在智能交通领域，行人检测可作为人流量统计的技术辅助手段，在自动驾驶领域，行人检测同样是关键的一环。在视频监控领域，从针对切割图像的行人重识别（Re-ID）技术扩展到针对全景图像的算法行人搜索（Person Search），这其中的关键，正是行人检测。综上所述， 。然而，传统非深度方法的行人检测往往存在着泛化能力弱，准确度较低等问题。在深度学习大行其道的今天，尝试着用深度学习方法解决行人检测问题，是可行和有前景的。
 
+\subsection{研究方法}
+\subsubsection{深度卷积神经网络}
+本毕设探究的算法都是基于卷积神经网络的。卷积神经网络是一种专门用来处理具有类似网格结构的数据的神经网络\upcite{Goodfellow-et-al-2016-201}。例如时间序列（可认为是时间轴上有规律地采样形成的一维网格）和图像数据（可以看做是二维的像素网格）。卷积网络在诸多应用领域都表现优异。“卷积神经网络”一词表明该网络使用卷积这种数学运算。卷积是一种特殊的线性运算。卷积网络是指那些至少在网络的一层中使用卷积运算来替代一般的矩阵乘法运算的神经网络。关于卷积网络的运算过程，以及它有什么优秀的性质，可参考本毕业设计的附录A部分。
 
-\subsection{国内外论文综述}
-\subsubsection{国内相关行人检测研究}
-几篇论文
-\subsubsection{国外相关行人检测研究}
-几篇论文
+\subsubsection{迁移学习之微调}
+迁移学习，[定义]，在传统基于机器学习的行人检测算法已有提及，为了解决传统方法泛化能力弱的问题。而目前深度学习方向最重要和主要的迁移学习方法，则是微调（fine-tuning）技术\upcite{yosinski2014transferable}。通过微调技术，我们往往能够在更加特定的任务上有着更好的表现。
 
-\subsection{研究方法与内容}
-\subsubsection{研究方法}
-深度卷积网络，迁移学习
-\subsubsection{研究内容}
-具体算法
 
 \section{算法}
 \subsection{传统算法}
-Hog+SVM
+\subsubsection{Hog+SVM}
+dala博士，于2005提出了Hog+SVM的方法\upcite{dalal2005histograms}。当时行人检测
 \subsection{faster-RCNN}
 \subsubsection{算法原理}
 region proposal + classifier
@@ -160,30 +157,31 @@ SSD\upcite{liu2016ssd}
 \newpage
 \renewcommand\refname{\zihao{-2} 参考文献}
 \addcontentsline{toc}{section}{参考文献}
-\bibliographystyle{unsrt}     %按引用顺序
+\bibliographystyle{plain}     %按引用顺序
 \bibliography{bio}
 
 \newpage
-\section*{附录}
-\addcontentsline{toc}{section}{附录}
+\section*{附录A}
+\addcontentsline{toc}{section}{附录A}
+
+\subsection*{涉及概念的关系}
 
 
-\setcounter{section}{1}
-\subsection*{神经网络简介及其在计算机视觉上的应用}
+\subsection*{神经网络}
 \subsubsection*{神经网络简介}
 
 常见的神经网络结构是如图\ref{fig:nn}所示的层级结构。
 \begin{figure}[htbp]
 \begin{minipage}[t]{0.35\linewidth}
 \centering
-\includegraphics[height=4.5cm]{neural_network.png}
+\includegraphics[height=4.5cm]{img/neural_network.png}
 \caption{双隐层前馈网络}
 \label{fig:nn}
 \end{minipage}%
 \hfill
 \begin{minipage}[t]{0.5\linewidth}
 \centering
-\includegraphics[height=4.5cm]{nn431.png}
+\includegraphics[height=4.5cm]{img/nn431.png}
 \caption{4结点输入单隐藏层网络}
 \label{fig:sample}
 \end{minipage}
@@ -199,13 +197,113 @@ SSD\upcite{liu2016ssd}
    \item 输入图像较大，或网络层数，结点数较大时，参数巨大。
 \end{itemize}
 
+\subsubsection*{前向传播和反向传播}
+
 所以渐渐的
-\subsection*{卷积神经网络}
-一言以蔽之，Deep Learning is an artificial neural network composed of many layers。
+\subsection*{卷积网络}
+卷积网络（convolutional network）(LeCun,1989)，也叫做卷积神经网络(convolutional nerual ntework, CNN)，是一种专门用来处理具有类似网格结构的数据的神经网络。例如时间序列数据（可以认为是在时间轴上有规律地采样形成的一维网格）和图像数据（可以看做二维的像素网格）。卷积网络在诸多应用领域都表现优异。“卷积神经网络”一词表明该网络使用了卷积(convolution)这种数学运算。卷积是一种特殊的线性运算。卷积网络是指那些至少在网络的一层中使用卷积运算来代替一般的矩阵乘法运算的神经网络。
+\paragraph{卷积运算}
+值得注意的是，深度学习中所指的卷积，和一般工程领域或数学领域的卷积运算并不相同。在通常形式中，卷积是对两个实变函数的一种数学运算。
+\[
+s(t)=\int x(a)w(t-a)da
+\]
+这种运算就叫做卷积。卷积常用星号表示:
+\[
+s(t) = (x*w)(t)
+\]
+在卷积网络的术语中，卷积的第一个参数（参数x）通常叫做输入（input），第二个参数（函数w）叫做核函数（kernel function）。输出有时被称作特征映射（feature map）。如果时刻t只能取整数值。且假定x和w都定义在整数时刻t上，就可以定义离散形式的卷积:
+\[
+s(t) = (x*w)(t) = \sum_{a=-\infty}^{\infty}x(a)w(t-a)
+\]
+在机器学习应用中，输入通常是多维数组的数据，而核通常是由学习算法优化得到的多维数组的参数。我们把这些多维数组叫做张量。因为在输入与核中的每一个元素都必须明确地分开存储，我们假定在存储了数值的有限点集以外，这些函数的值都为0。这意味着在实际操作中，我们可以通过对有限个数组元素的求和来实现无限求和。最后，我们通常一次在多个维度上进行卷积运算。例如一张二维图像作为输入，我们也许也想要使用一个二维的核K：
+\[
+S(i,j) = (I*K)(i,j) = \sum_m\sum_nI(m,n)K(i-m,j-n)
+\]
+许多神经网络库会实现一个相关的函数，称为互相关函数(cross-correlation)，和卷积运算几乎一样但是并没有对核进行翻转。
+\[
+S(i,j) = (I*K)(i,j) = \sum_m\sum_nI(i+m,j+n)K(m,n)
+\]
+许多机器学习库实现的是互相关函数但是称之为卷积。
 
-\subsection*{翻译}
+通俗来说，核（过滤器）在输入数据（张量）上依次滑动，通过卷积（互相关）运算，得到输出（特征映射）。
+图\ref{fig:conv}演示了一个在二维张量上的卷积运算例子。
+\begin{figure}[ht]
 
-\subsubsection*{Faster-RCNN}
+\centering
+\includegraphics[height=8.5cm]{img/convolution.png}
+\caption{一个二维卷积的例子}
+\label{fig:conv}
+\end{figure}
+
+\paragraph{动机}
+卷积运算通过三个重要的思想来帮助改进机器学习系统：稀疏交互（sparse interactions）、参数共享（parameter sharing）、等变表示（equivariant representations）。另外，卷积网络还提供了一种处理大小可变的输入的方法。\par
+传统神经网络使用矩阵乘法来建立输入与输出的连接关系。其中，参数矩阵中每一个单独的参数都描述了一个输入单元与一个输出单元间的交互。这意味着每一个输出单元与每一个输入单元都产生交互。然而，卷积网络具有稀疏交互(sparse interactions(也叫做稀疏连接(sparse connectivity)或者稀疏权重(sparse weights))的特征。这是使核的大小远小于输入的大小达到的。举个例子，当处理一张图像时，输入的图像可能包含成千上万个像素点，但是我们可以通过只占用几十到上百个像素点的核来检测一些小的有意义的特征，例如图像的边缘。这意味着为了得到输出我们只需要更少的计算量。这些效率上的提高是很显著的。如果有$m$个输入和$n$个输出，那么矩阵乘法需要$m \times n$个参数并且相应算法的复杂度为$O(m \times n)$(对于每一个例子)。如果我们限制每一个输出拥有的连接数为$k$，那么稀疏的连接方法只需要$k \times n$个参数以及$O(k\times n)$的运行时间。在很多实际应用中，只需要保持$k$比$m$小几个数量级，就能在机器学习的任务中取得好的表现。稀疏连接的图形化解释如图\ref{fig:sparse_dense} 和图\ref{fig:sparse_dense_receptive_field}。在深度卷积网络中，处在网络深层的单元可能与绝大部分输入是间接交互的，如图\ref{fig:receptive_field}。这允许网络可以通过只描述稀疏交互的基石来高效地描述多个变量的复杂交互。
+
+\begin{figure}[htbp] %子图上下居中对齐
+
+\centering
+
+\subfigure[]{
+\begin{minipage}[c]{0.5\textwidth}
+\centering
+\includegraphics[width=8.5cm]{img/sparse_connect.png}
+\end{minipage}
+}
+
+
+\subfigure[]{
+\begin{minipage}[c]{0.5\textwidth}
+\centering
+\includegraphics[width=8.5cm]{img/dense_connect.png}
+\end{minipage}
+}
+
+\caption{稀疏连接，对每幅图从下往上看。我们强调了一个输入单元$x_3$以及在$s$中受该单元影响的输出单元。(a)当$s$是由核宽度为3的卷积产生时，只有三个输出受到$x$的影响。(b)当s是由矩阵乘法产生时，连接不再是稀疏的，所以所有的输出都受到$x_3$的影响}
+\label{fig:sparse_dense}
+\end{figure}
+
+\begin{figure}[htbp] %子图上下居中对齐
+\centering
+
+\subfigure[]{
+\begin{minipage}[c]{0.5\textwidth}
+\centering
+\includegraphics[width=8.5cm]{img/sparse_receptive_field.png}
+\end{minipage}
+}
+
+
+\subfigure[]{
+\begin{minipage}[c]{0.5\textwidth}
+\centering
+\includegraphics[width=8.5cm]{img/dense_receptive_field.png}
+\end{minipage}
+}
+
+\caption{稀疏连接，对每幅图从下往上看。我们强调了一个输入单元$x_3$以及在$x$中影响该单元的输入单元。这些单元被称为$s_3$的接受域(receptive field)。(a)当$s$是由核宽度为3的卷积产生时，只有3个输入影响$s$。(b)当$s$是由矩阵乘法产生时，连接不再是稀疏的，所以所有的输入都会影响$s_3$}
+\label{fig:sparse_dense_receptive_field}
+\end{figure}
+
+\par
+参数共享(parameter sharing)是指在一个模型的多个函数中使用相同的参数。在传统的神经网络中，当计算一层的输出时，权重矩阵的每一个元素只使用一次，当它乘以输入的一个元素后就再也不会用到了。作为参数共享的同义词，我们可以说一个网络含有绑定的权重(tied weights)，因为用于一个输入的权重也会被绑定在其他的权重上。在卷积神经网络中，核的每一个元素都作用在输入的每一位置上(是否考虑边界像素取决于对边界决策的设计)。 卷积运算中的参数共享保证了我么只需要学习一个参数集合，而不是对于每一位置都需要学习一个单独的参数集合。这虽然没有改变前向传播的运行时间(仍然是$O(k\times n)$)，但它显著地把模型的存储需求降低至$k$个参数，并且$k$通常要比$m$小很多个数量级。因为$m$和$n$通常有着大致相同的大小，$k$在实际中相对于$m \times n$是很小的。因此，卷积在存储需求和统计效率方面极大地优于稠密矩阵的乘法运算。
+
+
+
+\begin{figure}[htbp]
+
+\centering
+\includegraphics[width=8.5cm]{img/deep_receptive_field.png}
+\caption{处于卷积网络更深的层中的单元，它们的接受域要比处在浅层的单元的接受域更大。如果网络还包含类似步幅卷积或者池化之类的结构特征，这种效应会加强。这意味着在卷积网络中尽管直接连接都是很稀疏的，但处在更深的层中的单元可以间接地连接到全部或者大部分输入图像}
+\label{fig:receptive_field}
+\end{figure}
+
+\newpage
+\section*{附录B}
+\addcontentsline{toc}{section}{附录B}
+
+\section*{翻译}
+
+\subsection*{Faster-RCNN}
 
 \paragraph {摘要:}
 最先进的目标识别网络决定于区域推荐算法去假设目标所在。先进的如SPPnet和Fast R-CNN降低了这些检测网络的运行时间，同时暴露出区域提出的计算是瓶颈。在本次工作中，我们介绍一种区域提出网络（RPN），这种网络与检测网络共享全图像卷积特征，因此，使区域提出接近无开销。RPN是一个全卷积网络，它同时预测物体边框和目标在每个位置的得分。RPN端到端的训练去生成高质量的推荐区域，并提供给Fast R-CNN去检测。在一个简单的转换优化后，RPN和Fast R-CNN可以共享卷积特征去训练。对于非常深的VGG-16模型，我们的检测系统在一块GPU上有着5FPS的帧率（包含了所有步骤），同时完成了最好的物体检测精度在PASCAL VOC 2007（73.2\% mAP)和2012（70.4\% mAP），每幅图片有约300个推荐区域。代码在\url{https://github.com/ShaoqingRen/faster_rcnn}.
