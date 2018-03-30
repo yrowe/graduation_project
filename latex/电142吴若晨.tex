@@ -129,10 +129,53 @@ Besides compared to the original object detection algorithm, these transformed m
 
 
 \section{算法}
-\subsection{传统算法}
-\subsubsection{Hog+SVM}
-dala博士，于2005提出了Hog+SVM的方法\upcite{dalal2005histograms}。当时行人检测
-\subsection{faster-RCNN}
+\subsection{Hog+SVM}
+dala博士，于2005年提出了Hog特征(Histogram of Oriented Gradients，方向梯度直方图)结合SVM(support vector machine,支持向量机)的方法进行行人检测\upcite{dalal2005histograms}。当时各类计算机视觉任务的解决方法大都停留在特征工程的层面上，而Hog特征又非常适合行人检测这项任务，所以在当时取得了相当的成功。
+\subsubsection{HoG算子}
+将图像分为多个小的单元(cells)，计算每个细胞单元上各方向的梯度值，并统计直方图。同时将多个单元组成块，并对每个块的直方图进行归一化以期有着更好的鲁棒性。我们将这样的归一化的块记为HoG特征。
+\subsubsection{SVM}
+SVM实际上就是一种分类器，通过在有标注的数据集上训练，得到合适的参数，就可以去检测行人了，这其实也就是监督学习的思想。
+\subsubsection{交并比和非极大值抑制}
+交并比(Intersection of Union,IoU)，解释
+\par
+非极大值抑制(Non-Maximum Suppression,NMS)，解释
+\subsubsection{整体流程}
+训练时候:
+滑窗得到部分图像的HOG特征，将HOG特征送入SVM训练，得到的结果与给定的标注比较，计算损失函数，反向传播，更新参数。
+测试时候：
+继续滑窗得到各部分图像的HOG特征，送到已经训练好的SVM分类器中，检测，得到所有的可能的行人框，需要注意的是，由于，对于一个行人，会存在多个检测框的情况，如图。所以，需要通过非极大值抑制进行处理。
+\subsubsection{检测实例}
+由于本毕设重点并不是传统方法，所以我选择直接调用OpenCV库训练好的HoG+SVM接口，进行测试，测试结果如图\ref{fig:hog}所示。
+
+\begin{figure}[t]
+\centering 
+\subfigure[subfigure 1-1]{\label{fig:subfig:a}
+\includegraphics[width=7cm,height=5cm]{img/hog/1.jpg}}
+\hspace{0.01\linewidth}
+\subfigure[subfigure
+ 1-2]{\label{fig:subfig:b}
+\includegraphics[width=7cm,height=5cm]{img/hog/2.jpg}}
+
+\vfill
+
+\subfigure[subfigure 2-1]{\label{fig:subfig:a}
+\includegraphics[width=7cm,height=5cm]{img/hog/3.jpg}}
+\hspace{0.01\linewidth}
+\subfigure[subfigure
+ 2-2]{\label{fig:subfig:b}
+\includegraphics[width=7cm,height=5cm]{img/hog/4.jpg}}
+\caption{HOG法检测行人}
+
+\label{fig:hog}
+\end{figure}
+
+可以看到，虽然Hog+SVM的方法可以成功的检测到行人，但是，直观看来，仍然存在着漏检，错检，以及检测框不够精准等诸多问题。虽然，针对这一系列问题，学术界也有着相应的研究，但这不是本毕设的重点，也就不在赘述。本毕设将以此方法作为基准，在后续和各种深度学习检测结果进行比较。
+
+
+\subsubsection{其他研究}
+基于特征工程的方法研究行人检测，还有诸如SIFT特征，Haar特征，都取得了一定的突破，然而受限于低级特征的表达能力，这些方法的上限并不会太高。在深度学习大行其道的今天，如何利用深度学习解决这些问题，是学术界与工业界共同关心的问题，接下来的篇幅，将会着重介绍几种基于深度学习的行人检测算法。
+
+\subsection{Faster-RCNN}
 \subsubsection{算法原理}
 region proposal + classifier
 \subsubsection{实验表现}
@@ -149,6 +192,7 @@ SSD\upcite{liu2016ssd}
 
 
 \section{算法的实际场景应用}
+通过迁移学习的方法，在充分训练的前提下，这些目标检测算法可以非常适合的迁移到诸如人脸检测，交通信号牌检测等等其他问题上去。
 
 \section*{致谢}
 \addcontentsline{toc}{section}{致谢}
