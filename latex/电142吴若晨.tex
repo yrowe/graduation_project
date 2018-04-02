@@ -16,6 +16,7 @@
 \usepackage{subfigure}
 \usepackage{enumitem}
 \usepackage{amsmath}          %split
+\usepackage{listings}    %代码环境
 
 %说明。bibtex如果需要引用中文文献，编码方式要一致，否则乱码，我的是使用utf-8无签名就不会乱码。
 
@@ -113,7 +114,7 @@ Besides compared to the original object detection algorithm, these transformed m
 \section{绪论}
 \subsection{研究背景及意义}
 \subsubsection{研究背景}
-行人检测作为计算机视觉中的一个经典的主题，其在学术界和工业界一直有着广泛的研究和应用。现有的行人检测方法主要为一些非深度方法，这些方法进一步又可分为基于背景建模的方法和基于机器学习的方法。背景建模法通过建立背景模型，利用背景减分割出前景，进一步判断和提取其中的行人目标。这类方法的抗干扰能力不强，难以处理背景的动态变化以及摄像头运动下拍摄的动态场景。而机器学习的方法则可归纳为特征工程结合分类器，首先使用一系列手工特征的组合，如Integral channel features\upcite{dollar2009integral}，HoG\upcite{dalal2005histograms}以及它们的变体\upcite{felzenszwalb2010object,schwartz2009human}，再将这些提取的特征送入诸如SVM\upcite{felzenszwalb2010object}，随机森林\upcite{dollar2012crosstalk}等分类器进行训练与测试。相较于背景建模的方法，机器学习方法对动态场景有着更强的鲁棒性和更低的误检率。然而，由于受限于浅层特征的表达能力，传统基于机器学习的行人检测算法，往往泛化能力较差，如果适用的场景与训练数据集差异很大，则这些方法的性能会急剧下降。为了解决问题，需要重新采集和标注大量的数据样本，耗时耗力，且若场景再次切换，需要重复如上工作。关于如何解决这个问题，学术界也对相应的机器学习方法细节进行了改进\upcite{邵松2014基于迁移学习的行人检测研究进展}。另外机器学习工业界广为流传着这样一句话：“数据和特征决定了机器学习的上限，而模型和算法只是逼近这个上限而已”，所以挖掘更高层次的特征，是解决检测问题一大重要方向。\par
+行人检测作为计算机视觉中的一个经典的主题，其在学术界和工业界一直有着广泛的研究和应用。现有的行人检测方法主要为一些非深度方法，这些方法进一步又可分为基于背景建模的方法和基于机器学习的方法。背景建模法通过建立背景模型，利用背景减分割出前景，进一步判断和提取其中的行人目标。这类方法的抗干扰能力不强，难以处理背景的动态变化以及摄像头运动下拍摄的动态场景。而机器学习的方法则可归纳为特征工程结合分类器，首先使用一系列手工特征的组合，如Integral channel features\upcite{dollar2009integral}，HoG\upcite{dalal2005histograms}以及它们的变体\upcite{felzenszwalb2010object,schwartz2009human}，再将这些提取的特征送入诸如SVM\upcite{felzenszwalb2010object}，随机森林\upcite{dollar2012crosstalk}等分类器进行训练与测试。相较于背景建模的方法，机器学习方法对动态场景有着更强的鲁棒性和更低的误检率。然而，由于受限于浅层特征的表达能力，传统基于机器学习的行人检测算法，往往泛化能力较差，如果适用的场景与训练数据集差异很大，则这些方法的性能会急剧下降。为了解决问题，需要重新采集和标注大量的数据样本，耗时耗力，且若场景再次切换，需要重复如上工作。关于如何解决这个问题，学术界也对相应的机器学习方法细节进行了改进。然而正如机器学习工业界广为流传着的这样一句话：“数据和特征决定了机器学习的上限，而模型和算法只是逼近这个上限而已”，所以挖掘更高层次的特征，是解决检测问题一大重要方向。\par
 另一方面，深度学习曾作为神经网络被我们广为熟知，在20世纪80年代流行过一阵，取到了相对较小的成功。然而在之后的几年里，神经网络被许多其他方法超越。神经网络训练慢，并且就深度神经网络从一个随机生成的权重起点开始训练是否可行，学术界没有达成广泛的一致，渐渐地被研究人员抛弃。现如今随着与日俱增的数据量和不断增强的计算力，我们拥有的计算资源可以运行更大的模型，深度学习的精确识别和预测能力也一直在提高。深度卷积神经网络作为深度学习的一个子集，具有强大的特征提取能力，而这一特性，恰好适合计算机视觉中各类图像任务。关于深度学习能力的一个粗略的经验法则是：监督深度学习算法在每类给定约5000个标注样本情况下一般将达到可接受的性能，当至少有1000万个标注样本的数据集用于训练时，它将达到或超过人类表现\upcite{Goodfellow-et-al-2016}。深度学习随着卷积网络AlexNet\upcite{krizhevsky2012imagenet}在ImageNet竞赛大放异彩而迅速崛起，随后卷积网络在图像识别\upcite{simonyan2014very,he2016deep}，物体检测\upcite{ren15fasterrcnn,redmon2016you,liu2016ssd}等各个方向实现了对传统方法的超越。特定到行人检测的深度学习方法，也有相关的研究\upcite{sermanet2013pedestrian}。关于神经网络和卷积网络的相关概念，可参考本毕业设计于附录A部分的简单介绍。
 
 本课设旨在从深度学习中卷积神经网络的角度切入，改善非深度方法中对模糊图像处理乏力，泛化能力不强的缺陷。并相较传统方法，达到更高的准确率，和更低的漏检，错检率。 
@@ -122,11 +123,15 @@ Besides compared to the original object detection algorithm, these transformed m
 
 \subsection{研究方法}
 \subsubsection{深度卷积神经网络}
-本毕设探究的算法都是基于卷积神经网络的。卷积神经网络是一种专门用来处理具有类似网格结构的数据的神经网络\upcite{Goodfellow-et-al-2016-201}。例如时间序列（可认为是时间轴上有规律地采样形成的一维网格）和图像数据（可以看做是二维的像素网格）。卷积网络在诸多应用领域都表现优异。“卷积神经网络”一词表明该网络使用卷积这种数学运算。卷积是一种特殊的线性运算。卷积网络是指那些至少在网络的一层中使用卷积运算来替代一般的矩阵乘法运算的神经网络。关于卷积网络的运算过程，以及它有什么优秀的性质，可参考本毕业设计的附录A部分。
+本毕设探究的算法都是基于卷积神经网络的。卷积神经网络是一种专门用来处理具有类似网格结构的数据的神经网络\upcite{Goodfellow-et-al-2016}。例如时间序列（可认为是时间轴上有规律地采样形成的一维网格）和图像数据（可以看做是二维的像素网格）。卷积网络在诸多应用领域都表现优异。“卷积神经网络”一词表明该网络使用卷积这种数学运算。卷积是一种特殊的线性运算。卷积网络是指那些至少在网络的一层中使用卷积运算来替代一般的矩阵乘法运算的神经网络。关于卷积网络的运算过程，以及它有什么优秀的性质，可参考本毕业设计的附录A部分。
 
 \subsubsection{迁移学习之微调}
 迁移学习，[定义]，在传统基于机器学习的行人检测算法已有提及，为了解决传统方法泛化能力弱的问题。而目前深度学习方向最重要和主要的迁移学习方法，则是微调（fine-tuning）技术\upcite{yosinski2014transferable}。通过微调技术，我们往往能够在更加特定的任务上有着更好的表现。
 
+\subsection{数据集}
+本毕设展示的行人检测结果统一使用香港中文大学的CUHK Occlusion Dataset\upcite{ouyang2012discriminative}行人数据集，然而这个数据集存在训练集标注不准确，数据量过小等问题，而这也是目前诸多行人检测数据集都存在的问题。训练物体检测算法数据集是PASCAL VOC2007和2012的train和val子集。迁移到行人检测任务时，考虑到Occlusion数据集的问题，故并未采用，反而，继续使用PASCAL VOC\upcite{pascal-voc-2007}数据集，只是在读入时候，仅仅使用标签为person的项。
+
+在毕设的附件中，有本毕设涉及的各种算法，应用在全部CUHK Occlusion Dataset和INRIA\upcite{dalal2005histograms}行人数据集的测试结果。
 
 \section{算法}
 \subsection{Hog+SVM}
@@ -136,9 +141,17 @@ dala博士，于2005年提出了Hog特征(Histogram of Oriented Gradients，方�
 \subsubsection{SVM}
 SVM实际上就是一种分类器，通过在有标注的数据集上训练，得到合适的参数，就可以去检测行人了，这其实也就是监督学习的思想。
 \subsubsection{交并比和非极大值抑制}
-交并比(Intersection of Union,IoU)，解释
-\par
-非极大值抑制(Non-Maximum Suppression,NMS)，解释
+\textbf{交并比(Intersection of Union,IoU)}，它是用来表示边界框的切合程度，定义为两个边界框的重叠度，如下图\ref{fig:iou}所示
+\begin{figure}[h]
+\centering
+\includegraphics[height=4.5cm]{img/iou.png}
+\caption{IoU定义}
+\label{fig:iou}
+\end{figure}
+
+IoU值越大则表明两个边界框重合程度很大，越低则不相似。
+
+\textbf{非极大值抑制(Non-Maximum Suppression,NMS)}，解释
 \subsubsection{整体流程}
 训练时候:
 滑窗得到部分图像的HOG特征，将HOG特征送入SVM训练，得到的结果与给定的标注比较，计算损失函数，反向传播，更新参数。
@@ -169,22 +182,186 @@ SVM实际上就是一种分类器，通过在有标注的数据集上训练，�
 \label{fig:hog}
 \end{figure}
 
-可以看到，虽然Hog+SVM的方法可以成功的检测到行人，但是，直观看来，仍然存在着漏检，错检，以及检测框不够精准等诸多问题。虽然，针对这一系列问题，学术界也有着相应的研究，但这不是本毕设的重点，也就不在赘述。本毕设将以此方法作为基准，在后续和各种深度学习检测结果进行比较。
+可以看到，虽然Hog+SVM的方法可以成功的检测到行人，但是，直观看来，仍然存在着漏检，错检，以及检测框不够精准等诸多问题。虽然，针对这一系列问题，学术界也有着相应的研究，但这不是本毕设的重点，也就不再赘述。本毕设将以此方法作为基准，在后续和各种深度学习检测结果进行比较。
 
 
 \subsubsection{其他研究}
 基于特征工程的方法研究行人检测，还有诸如SIFT特征，Haar特征，都取得了一定的突破，然而受限于低级特征的表达能力，这些方法的上限并不会太高。在深度学习大行其道的今天，如何利用深度学习解决这些问题，是学术界与工业界共同关心的问题，接下来的篇幅，将会着重介绍几种基于深度学习的行人检测算法。
 
 \subsection{Faster-RCNN}
-\subsubsection{算法原理}
-region proposal + classifier
+\subsubsection{算法概述}
+Faster-RCNN是RCNN(Region Convolutional Nerual Network)算法的一种变体，RCNN经过了Fast-RCNN，Faster-RCNN的发展，以及最近更新的在像素层面上分割物体的Mask RCNN。
+\par
+\textbf{R-CNN：区域卷积神经网络}
+这是基于卷积神经网络的物体检测的奠基之作。其核心思想是在对每张图片选取多个区域，然后每个区域作为一个样本进入一个卷积神经网络来抽取特征，最后使用分类器来对齐分类，和一个回归器来得到准确的边框。
+整体流程如图所示\ref{fig:rcnn}
+
+具体来说，这个算法有如下几个步骤：
+
+\begin{itemize}
+\item 对每张输入图片使用一个基于规则的“选择性搜索”算法来选取多个提议区域
+\item 跟微调迁移学习里那样，选取一个预先训练好的卷积神经网络并去掉最后一个输入层。每个区域被调整成这个网络要求的输入大小并计算输出。这个输出将作为这个区域的特征。
+\item 使用这些区域特征来训练多个SVM来做物体识别，每个SVM预测一个区域是不是包含某个物体
+\item 使用这些区域特征来训练线性回归器将提议区域
+\end{itemize}
+
+\begin{figure}[htbp]
+\begin{minipage}[t]{0.35\linewidth}
+\centering
+\includegraphics[height=8.5cm]{img/rcnn.png}
+\caption{RCNN流程}
+\label{fig:rcnn}
+\end{minipage}%
+\hfill
+\begin{minipage}[t]{0.5\linewidth}
+\centering
+\includegraphics[height=8.5cm]{img/fast-rcnn.png}
+\caption{Fast-RCNN流程}
+\label{fig:fast-rcnn}
+\end{minipage}
+\end{figure}
+
+直观上R-CNN很好理解，但问题是它可能特别慢。一张图片我们可能选出上千个区域，导致一张图片需要做上千次预测。虽然跟微调不一样，这里训练可以不用更新用来抽特征的卷积神经网络，从而我们可以事先算好每个区域的特征并保存。但对于预测，我们无法避免这个。从而导致R-CNN很难实际中被使用。
+
+\textbf{Fast R-CNN：快速的区域卷积神经网络}
+Fast R-CNN对R-CNN主要做了两点改进来提升性能。
+\begin{itemize}
+\item 考虑到R-CNN里面的大量区域可能是相互覆盖，每次重新抽取特征过于浪费。因此Fast R-CNN先对输入图片抽取特征，然后再选取区域。
+\item Fast R-CNN不再使用多个SVM来做分类，而是用单个多类逻辑回归。
+\end{itemize}
+
+流程如图\ref{fig:fast-rcnn}所示
+
+从示意图可以看到，使用选择性搜索选取的区域是作用在卷积神经网络提取的特征上。这样我们只需要对原始的输入图片做一次特征提取即可，如此节省了大量重复计算。
+Fast R-CNN提出兴趣区域池化层（Region of Interest (RoI) pooling），它的输入为特征和一系列的区域，对每个区域它将其均匀划分成$n \times m$的小区域，并对每个小区域做最大池化，从而得到一个$n\times m$的输出。因此不管输入区域的大小，RoI池化层都将其池化成固定大小输出。
+
+\textbf{Faster R-CNN：更快速的区域卷积神经网络}
+Fast R-CNN沿用了R-CNN的选择性搜索方法来选择区域。这个通常很慢。Faster R-CNN做的主要改进是提出了区域提议网络（region proposal network, RPN）来替代选择性搜索。它是这么工作的：
+\begin{itemize}
+\item 在输入特征上放置一个$填充为1通道是256的3\times 3$卷积。这样每个像素，连同它的周围8个像素，都被映射成一个长为256的向量。
+\item 以每个像素为中心，生成$k$个大小和长宽比都预先设计好的默认边框，通常也叫锚框。
+\item 对每个边框，使用其中心像素对应的256维向量作为特征，RPN训练一个2类分类器来判断这个区域是不是含有任何感兴趣的物体还是只是背景，和一个4维输出的回归器来预测一个更准确的边框。
+\item 对于所有的锚框，个数为$nmk$如果输入大小是$n\times m$，选出被判断成还有物体的，然后前他们对应的回归器预测的边框作为输入放进接下来的RoI池化层
+\end{itemize}
+
+\begin{figure}[h]
+\centering
+\includegraphics[height=8.5cm]{img/faster-rcnn.png}
+\caption{Faster-RCNN流程}
+\label{fig:faster-rcnn}
+\end{figure}
+
+虽然看上有些复杂，但RPN思想非常直观。首先提议预先配置好的一些区域，然后通过神经网络来判断这些区域是不是感兴趣的，如果是，那么再预测一个更加准确的边框。这样我们能有效降低搜索任何形状的边框的代价。\par
+下面将分几节，介绍Faster-RCNN涉及的几个概念，其中，对于IoU和NMS在HoG的章节已经提及，可参考以上章节，将不再赘述。YOLO和SSD章节同理，相同概念不会重复介绍。
+
+\subsubsection{特征抽取}
+本章节所提及的所有Faster-RCNN结构，均默认是复用VGG16\upcite{simonyan2014very}网络的版本，下同，不特别注明。
+对于一幅图像输入，Faster-RCNN首先对图像进行resize，然后通过一系列卷积组合运算得到一个feature map。而这个卷积运算，是复用分类网络(如VGG16)的feature extractor部分，这部分网络结构由13层卷积层，13层ReLU层，5层MaxPooling层组成。具体组合顺序和超参数，详见本毕设代码$fasterRCNN/lib/VGG16/faster\_rcnn\_vgg16.py$中的注释。ReLU层和MaxPooling层相关概念详见附录A。
+
+\subsubsection{RPN}
+RPN,Region Proposal Network，是Faster-RCNN相较于Fast-RCNN改进的点，用一个可整合进卷积网络的区域提议网络，代替之前的启发式的选择性搜索提出提议框。使整个算法模型成为一体式的网络结构，可统一用来训练和测试。RPN的结构图如\ref{fig:rpn}所示。
+
+\begin{figure}[h]
+\centering
+\includegraphics[height=5.5cm]{img/rpn.png}
+\caption{RPN流程}
+\label{fig:rpn}
+\end{figure}
+\par
+
+其中，特征映射即上文提及的feature map，对于该feature map，用k个anchor boxes在该映射上的每一个点利用滑窗的思想，上下左右滑动，利用卷积计算中间层特征。在此之后，RPN分为两条支线，一侧得到该点上各anchor boxes对应的提议框的坐标x,y和长宽h,w，另一侧计算该点上各anchor boxes对应的提议框作为前景和背景的概率。TODO具体得到RoI
+
+\textbf{anchor boxes：}
+Anchor是大小和尺寸固定的候选框。默认的anchor由三种大小和三种长宽比，共9个。如图\ref{fig:anchorbox}。
+\begin{figure}[h]
+\centering
+\includegraphics[height=5.5cm]{img/anchorbox.png}
+\caption{Anchor示意图}
+\label{fig:anchorbox}
+\end{figure}
+
+\textbf{训练损失函数：}回归的总Loss如公式\ref{eq:rpnLoss}:
+
+\begin{equation}\label{eq:rpnLoss}
+\begin{split}
+& t_x = (x-x_a)/w_a,\quad t_y = (y-y_a)/h_a \\
+& t_w = log(w/w_a),\quad t_h = log(h/h_a) \\
+& t_x^* = (x^*-x_a)/w_a,\quad t_y^* = (y^*-y_a)/h_a\\
+& t_w^* = log(w^*/w_a),\quad t_h^* = log(h^*/h_a) \\
+& L({p_i},{t_i}) = \frac{1}{N_{cls}}\sum_iL_{cls}(p_i,p_i^*) + \lambda\frac{1}{N_{reg}}\sum_ip_i^*L_{reg}(t_i,t_i^*)
+\end{split}
+\end{equation}
+
+其中，$x,y,w,h$为RPN网络预测的提议框的参数值，$x_a,y_a,w_a,h_a$为单一的anchor box对应的参数值，$x^*,y^*,w^*,h^*$为ground truth的框对应的参数值。
+
+\subsubsection{RoI Pooling}
+RoI Pooling本质上来说，可以理解成SPPnet\upcite{he2014spatial}的逆向。SPP-net对每个提议框使用不同尺寸的金字塔映射，而RoI pooling则是将RPN传进来的RoI区域对应的特征映射下采样到一个固定大小，比如$7\times 7$。而选择$7\times 7$的原因是因为当输入是$512\times7\times7$时候，将张量展开，将和VGG16的classfier的输入维度一致，后续可以继续复用预训练权重。通过RoI pooling的操作，可以将各种大小的所有提议框的原图特征映射下采样到固定大小的特征映射。将得到的特征映射张开成一维张量，送入复用的VGG16的两层全连接层。
+
+\subsubsection{Faster-RCNN整体流程}
+
 \subsubsection{实验表现}
 PASCAL VOC 71.2 mAP   15FPS
+\subsubsection{检测实例}
+效果如图\ref{fig:rcnn}
+\subsubsection{其他进展}
+Faster RCNN的作者何恺明的Mask RCNN，以及专门针对检测人的论文\upcite{gkioxari2017detecting}。诸多实验室和人工智能公司都对Faster-RCNN有着复现，而2018年1月，Faster-RCNN作者所属机构Facebook的FAIR实验室正式开源了基于caffe2的detectron框架。这个框架有着一系列物体检测的接口，非常适合工程使用。
+
+\begin{figure}[t]
+\centering 
+\subfigure[subfigure 1-1]{\label{fig:subfig:a}
+\includegraphics[width=7cm,height=5cm]{img/rcnn/1.png}}
+\hspace{0.01\linewidth}
+\subfigure[subfigure
+ 1-2]{\label{fig:subfig:b}
+\includegraphics[width=7cm,height=5cm]{img/rcnn/2.png}}
+
+\vfill
+
+\subfigure[subfigure 2-1]{\label{fig:subfig:a}
+\includegraphics[width=7cm,height=5cm]{img/rcnn/3.png}}
+\hspace{0.01\linewidth}
+\subfigure[subfigure
+ 2-2]{\label{fig:subfig:b}
+\includegraphics[width=7cm,height=5cm]{img/rcnn/4.png}}
+\caption{Faster-RCNN法检测行人}
+
+\label{fig:rcnn}
+\end{figure}
+
 \subsection{YOLO}
 \subsubsection{算法原理}
 YOLO(You only look once)\upcite{redmon2016you}
 \subsubsection{实验表现}
 PACAL VOC 63.0 mAP    45FPS
+\subsubsection{检测实例}
+
+\subsubsection{tiny-YOLO及其检测实例}
+
+\subsubsection{YOLO的其他迁移学习尝试}
+由于作者训练的足够好，对于行人这种，本身就处在物体检测目标内的问题，通过迁移学习，在数据集不够大，训练不充分的情况是无法超过之前的表现的，但是，一旦遇到数据集不存在的类的时候，迁移学习就显得非常好用了。下面是YOLOv2迁移到人脸检测的实例。
+
+\begin{figure}[t]
+\centering 
+\subfigure[subfigure 1-1]{\label{fig:subfig:a}
+\includegraphics[width=7cm,height=5cm]{img/yolo/1.png}}
+\hspace{0.01\linewidth}
+\subfigure[subfigure
+ 1-2]{\label{fig:subfig:b}
+\includegraphics[width=7cm,height=5cm]{img/yolo/2.png}}
+
+\vfill
+
+\subfigure[subfigure 2-1]{\label{fig:subfig:a}
+\includegraphics[width=7cm,height=5cm]{img/yolo/3.png}}
+\hspace{0.01\linewidth}
+\subfigure[subfigure
+ 2-2]{\label{fig:subfig:b}
+\includegraphics[width=7cm,height=5cm]{img/yolo/4.png}}
+\caption{YOLOv3检测行人}
+
+\label{fig:yolov3}
+\end{figure}
+
 \subsection{SSD}
 \subsubsection{算法原理}
 SSD\upcite{liu2016ssd}
@@ -331,6 +508,15 @@ S(i,j) = (I*K)(i,j) = \sum_m\sum_nI(i+m,j+n)K(m,n)
 \par
 参数共享(parameter sharing)是指在一个模型的多个函数中使用相同的参数。在传统的神经网络中，当计算一层的输出时，权重矩阵的每一个元素只使用一次，当它乘以输入的一个元素后就再也不会用到了。作为参数共享的同义词，我们可以说一个网络含有绑定的权重(tied weights)，因为用于一个输入的权重也会被绑定在其他的权重上。在卷积神经网络中，核的每一个元素都作用在输入的每一位置上(是否考虑边界像素取决于对边界决策的设计)。 卷积运算中的参数共享保证了我么只需要学习一个参数集合，而不是对于每一位置都需要学习一个单独的参数集合。这虽然没有改变前向传播的运行时间(仍然是$O(k\times n)$)，但它显著地把模型的存储需求降低至$k$个参数，并且$k$通常要比$m$小很多个数量级。因为$m$和$n$通常有着大致相同的大小，$k$在实际中相对于$m \times n$是很小的。因此，卷积在存储需求和统计效率方面极大地优于稠密矩阵的乘法运算。
 
+\paragraph{激活函数}
+激活函数作用
+
+\paragraph{ReLU}
+Rectified Linear Unit
+
+\paragraph{池化层}
+Maxpooling
+
 
 
 \begin{figure}[htbp]
@@ -455,5 +641,8 @@ t_x^* = (x^*-x_a)/w_a,\quad t_y^* = (y^*-y_a)/h_a,\quad t_w^* = log(w^*/w_a),\qu
 \end{document}
 
 
+一些暂时删除的内容:
+rpn:
+其中，特征映射即上文提及的feature map，这个张量的形状为$512\times 62\times 37$(三维张量格式统一表示为channel $\times$ height $\times$ width，下同不赘述)。用$3\times3$个anchor boxes在这个feature map长和宽组成的每一个点上，利用类似滑窗法的思想，自上而下，自左而右滑动。首先是利用$512\times3\times3$，共计$256$个filters得到中间层映射，该张量的形状为($256\times3\times3$)。该中间层将分为两条支线，分别进行计算。一侧通过2个形状为$256\times3\times3$的filter得到2*9个值的cls layer，分别表明该点的这9个anchor boxes对应的前景和背景的概率。另一侧通过4个形状为$256\times3\times3$的filter得到4$\times$9个值的reg layer，表明该点9个anchor boxes对应的提议框的中心坐标x,y和长宽h,w。
 
 
