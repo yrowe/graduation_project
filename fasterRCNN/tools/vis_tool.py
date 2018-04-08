@@ -4,9 +4,17 @@ import numpy as np
 import matplotlib
 import torch as t
 import visdom
+from tools.dataset import preprocess 
+from lib.utils.bbox_tools import loc2bbox
+from tools.config import opt 
+from tools import array_tool as at
+from lib.NMS.non_maximum_suppression import non_maximum_suppression
+from torch.nn import functional as F 
+import torch
 
 matplotlib.use('Agg')
 from matplotlib import pyplot as plot
+from IPython.core.debugger import Tracer
 
 # from data.voc_dataset import VOC_BBOX_LABEL_NAMES
 
@@ -18,7 +26,7 @@ VOC_BBOX_LABEL_NAMES = (
     'boat',
     'pin',
     'bus',
-    'c',
+    'car',
     'cat',
     'chair',
     'cow',
@@ -26,7 +34,7 @@ VOC_BBOX_LABEL_NAMES = (
     'dog',
     'horse',
     'moto',
-    'p',
+    'person',
     'plant',
     'shep',
     'sofa',
@@ -127,6 +135,72 @@ def vis_bbox(img, bbox, label=None, score=None, ax=None):
                     bbox={'facecolor': 'white', 'alpha': 0.5, 'pad': 0})
     return ax
 
+
+def predict(imgs, model, specific_label=['person'], sizes=None):
+    list_name = list(VOC_BBOX_LABEL_NAMES)
+    model.nms_thresh = 0.3
+    model.score_thresh = 0.7
+    
+    prepared_imgs = list()
+    sizes = list()
+    for img in imgs:
+        size = img.shape[1:]
+        img = preprocess(at.tonumpy(img))
+        prepared_imgs.append(img)
+        sizes.append(size)
+
+    bboxes = list()
+    labels = list()
+    scores = list()
+
+    for img, size in zip(prepared_imgs, sizes):
+        img = torch.autograd.Variable(at.totensor(img).float()[None], volatile=True)
+        scale = img.shape[3]/size[1]
+        roi_cls_loc, roi_scores, rois, _ = model.forward(img, scale=scale)  #forward method
+        roi_score = roi_scores.data
+        roi_cls_loc = roi_cls_loc.data
+        roi = at.totensor(rois)/scale
+
+         #convert predictions to bounding boxes in image coordinates.
+         #Bounding boxes are scaled to the scale of the input images.
+
+        mean = torch.Tensor(model.loc_normalize_mean).cuda().repeat(model.n_class)[None]
+        std = torch.Tensor(model.loc_normalize_std).cuda().repeat(model.n_class)[None]
+
+        roi_cls_loc = (roi_cls_loc*std + mean)
+        roi_cls_loc = roi_cls_loc.view(-1, model.n_class, 4)
+
+        roi = roi.view(-1, 1, 4).expand_as(roi_cls_loc)
+        cls_bbox = loc2bbox(at.tonumpy(roi).reshape((-1, 4)), at.tonumpy(roi_cls_loc).reshape((-1, 4)))
+        cls_bbox = at.totensor(cls_bbox)
+
+        cls_bbox = cls_bbox.view(-1, model.n_class*4)
+        #clip bounding box
+
+        cls_bbox[:, 0::2] = (cls_bbox[:, 0::2]).clamp(min=0, max=size[0])
+        cls_bbox[:, 1::2] = (cls_bbox[:, 1::2]).clamp(min=0, max=size[1])
+
+        prob = at.tonumpy(F.softmax(at.tovariable(roi_score), dim=1))
+
+        raw_cls_bbox = at.tonumpy(cls_bbox)
+        raw_prob = at.tonumpy(prob)
+
+        bbox, label, score = model._suppress(raw_cls_bbox, raw_prob)
+        bbox1 = list()
+        label1 = list()
+        score1 = list()
+
+        for k,i in enumerate(label):
+            if(list_name[i] in specific_label):
+                bbox1.append(bbox[k])
+                label1.append(label[k])
+                
+                score1.append(score[k])
+
+        bboxes.append(bbox1)
+        labels.append(label1)
+        scores.append(score1)
+    return bboxes, labels, scores  
 
 def fig2data(fig):
     """
