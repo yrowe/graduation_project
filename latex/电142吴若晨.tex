@@ -114,6 +114,8 @@ Besides compared to the original object detection algorithm, these transformed m
 \section{绪论}
 \subsection{研究背景及意义}
 \subsubsection{研究背景}
+
+
 行人检测作为计算机视觉中的一个经典的主题，其在学术界和工业界一直有着广泛的研究和应用。现有的行人检测方法主要为一些非深度方法，这些方法进一步又可分为基于背景建模的方法和基于机器学习的方法。背景建模法通过建立背景模型，利用背景减分割出前景，进一步判断和提取其中的行人目标。这类方法的抗干扰能力不强，难以处理背景的动态变化以及摄像头运动下拍摄的动态场景。而机器学习的方法则可归纳为特征工程结合分类器，首先使用一系列手工特征的组合，如Integral channel features\upcite{dollar2009integral}，HoG\upcite{dalal2005histograms}以及它们的变体\upcite{felzenszwalb2010object,schwartz2009human}，再将这些提取的特征送入诸如SVM\upcite{felzenszwalb2010object}，随机森林\upcite{dollar2012crosstalk}等分类器进行训练与测试。相较于背景建模的方法，机器学习方法对动态场景有着更强的鲁棒性和更低的误检率。然而，由于受限于浅层特征的表达能力，传统基于机器学习的行人检测算法，往往泛化能力较差，如果适用的场景与训练数据集差异很大，则这些方法的性能会急剧下降。为了解决问题，需要重新采集和标注大量的数据样本，耗时耗力，且若场景再次切换，需要重复如上工作。关于如何解决这个问题，学术界也对相应的机器学习方法细节进行了改进。然而正如机器学习工业界广为流传着的这样一句话：“数据和特征决定了机器学习的上限，而模型和算法只是逼近这个上限而已”，所以挖掘更高层次的特征，是解决检测问题一大重要方向。\par
 另一方面，深度学习曾作为神经网络被我们广为熟知，在20世纪80年代流行过一阵，取到了相对较小的成功。然而在之后的几年里，神经网络被许多其他方法超越。神经网络训练慢，并且就深度神经网络从一个随机生成的权重起点开始训练是否可行，学术界没有达成广泛的一致，渐渐地被研究人员抛弃。现如今随着与日俱增的数据量和不断增强的计算力，我们拥有的计算资源可以运行更大的模型，深度学习的精确识别和预测能力也一直在提高。深度卷积神经网络作为深度学习的一个子集，具有强大的特征提取能力，而这一特性，恰好适合计算机视觉中各类图像任务。关于深度学习能力的一个粗略的经验法则是：监督深度学习算法在每类给定约5000个标注样本情况下一般将达到可接受的性能，当至少有1000万个标注样本的数据集用于训练时，它将达到或超过人类表现\upcite{Goodfellow-et-al-2016}。深度学习随着卷积网络AlexNet\upcite{krizhevsky2012imagenet}在ImageNet竞赛大放异彩而迅速崛起，随后卷积网络在图像识别\upcite{simonyan2014very,he2016deep}，物体检测\upcite{ren15fasterrcnn,redmon2016you,liu2016ssd}等各个方向实现了对传统方法的超越。特定到行人检测的深度学习方法，也有相关的研究\upcite{sermanet2013pedestrian}。关于神经网络和卷积网络的相关概念，可参考本毕业设计于附录A部分的简单介绍。
 
@@ -151,7 +153,7 @@ SVM实际上就是一种分类器，通过在有标注的数据集上训练，�
 
 IoU值越大则表明两个边界框重合程度很大，越低则不相似。
 
-\textbf{非极大值抑制(Non-Maximum Suppression,NMS)}，解释
+\textbf{非极大值抑制(Non-Maximum Suppression,NMS)}，在预测阶段，可以会有多个预测框预测了实际为同一物体的情况，而判定这种情况的原则是，多个预测框的IoU大于一个阈值（通常设定为0.5），这时候选择置信度最高的一个预测框作为最终的预测。
 \subsubsection{整体流程}
 训练时候:
 滑窗得到部分图像的HOG特征，将HOG特征送入SVM训练，得到的结果与给定的标注比较，计算损失函数，反向传播，更新参数。
@@ -182,7 +184,8 @@ IoU值越大则表明两个边界框重合程度很大，越低则不相似。
 \label{fig:hog}
 \end{figure}
 
-可以看到，虽然Hog+SVM的方法可以成功的检测到行人，但是，直观看来，仍然存在着漏检，错检，以及检测框不够精准等诸多问题。虽然，针对这一系列问题，学术界也有着相应的研究，但这不是本毕设的重点，也就不再赘述。本毕设将以此方法作为基准，在后续和各种深度学习检测结果进行比较。
+\subsubsection{Hog+SVM方法缺点}
+可以看到，虽然Hog+SVM的方法可以成功的检测到行人，但是，直观看来，仍然存在着漏检，错检，以及检测框不够精准等诸多问题。且当输入图像变大的时候，滑窗数会急剧变多，算法速度直线下降。虽然，针对这一系列问题，学术界也有着相应的研究，但这不是本毕设的重点，也就不再赘述。本毕设将以此方法作为基准，在后续和各种深度学习检测结果进行比较。
 
 
 \subsubsection{其他研究}
@@ -297,7 +300,13 @@ Anchor是大小和尺寸固定的候选框。默认的anchor由三种大小和�
 \subsubsection{RoI Pooling}
 RoI Pooling本质上来说，可以理解成SPPnet\upcite{he2014spatial}的逆向。SPP-net对每个提议框使用不同尺寸的金字塔映射，而RoI pooling则是将RPN传进来的RoI区域对应的特征映射下采样到一个固定大小，比如$7\times 7$。而选择$7\times 7$的原因是因为当输入是$512\times7\times7$时候，将张量展开，将和VGG16的classfier的输入维度一致，后续可以继续复用预训练权重。通过RoI pooling的操作，可以将各种大小的所有提议框的原图特征映射下采样到固定大小的特征映射。将得到的特征映射张开成一维张量，送入复用的VGG16的两层全连接层。
 
+\subsubsection{非极大值抑制}
+与上文SVM+HoG算法中提到的非极大值抑制不同，Faster-RCNN整体流程中共用到了两次非极大值抑制。首先，在训练时，RPN网络中，第一次使用非极大值抑制，但这时候并没有考虑置信度，仅仅是依次排序，结果获得针对每个物体预测的第一个RoI。而之后，在预测阶段，就是同样地，对预测同一物体的预测框们，取置信度最高的作为最终的结果。
+
 \subsubsection{Faster-RCNN整体流程}
+
+\subsubsection{Faster-RCNN迁移到行人识别}
+考虑到Faster-RCNN为多目标检测算法，它检测的目标数为数据
 
 \subsubsection{实验表现}
 PASCAL VOC 71.2 mAP   15FPS
@@ -328,44 +337,99 @@ Faster RCNN的作者何恺明的Mask RCNN，以及专门针对检测人的论文
 \label{fig:rcnn}
 \end{figure}
 
+\subsection{SSD}
+\subsubsection{算法概述}
+SSD\upcite{liu2016ssd}
+\subsubsection{实验表现}
+
 \subsection{YOLO}
-\subsubsection{算法原理}
-YOLO(You only look once)\upcite{redmon2016you}
+\subsubsection{算法概述}
+YOLO(You only look once)，自发布至今已迭代更新三个版本。v1\upcite{redmon2016you},v2\upcite{redmon2017yolo9000},v3\upcite{}。\par
+\textbf{YOLOv1} 不同于，Faster-RCNN等two-stage算法，YOLO将整个算法流程整合成了一个回归问题，故它是one-stage算法。整个网络由24个卷积层和2个全连接层组成。最终输出结果为一个S$\times S \times(5\times B + C)$的张量，S表示输出特征图的大小，典型值为7，B代表特征图的每个cell上预测的边界框的数量，典型值为2，C为总共需要预测的数量，论文训练使用的是PASCAL VOC数据集，所以C=20。对于输出特征图的每一个cell点，有它预测的两个边界框的中心坐标和长宽，以及它作为准确边界框的置信度。剩下的20个值分别为每个类别的概率。通过这样的设计，训练得到的模型，可以直接从输入图像得到检测结果，速度非常的快。YOLOv1在相对准确的前提下，速度大幅度提高。但YOLOv1的缺点也非常明显，由于他对于特征图输出的每个cell只预测两个边界框，且同类型的物体中心落到同一个cell的话，只会预测其中一个，这直接导致了YOLOv1对于同物体密集型的场景适用性很差，比如交通行人检测。同时，YOLOv1的边界框是相对输入图像大小的，从而很难学习不同长宽比的物体，这也使得他的定位准确度较差。且YOLOv1的特征图大小是单一的，为$7\times 7$，这使得他对于颗粒度小的物体并不敏感。同时，由于最后的分类层是传统的全连接层，这导致YOLOv1的参数非常的多，且要求输入图像大小固定。\par
+\textbf{YOLOv2}  YOLOv2在YOLOv1的模型基础上，增加了多种尝试，使得在维持高检测速度的前提下，大幅提高准确度。引入Batch Normalization\upcite{ioffe2015batch}机制，使用高分辨率图像获得更多特征，使用anchor boxes机制，边界框聚类技术最终大幅提高了检测准确度和定位精度。\par
+\textbf{YOLOv3}  相较于YOLOv2，最新版本的YOLO使用了多尺度预测的方法，聚类边界框等技巧提高准确度，以及相较于YOLOv2的darknet-19更深的特征提取网络，该网络里增添了ResNet\upcite{he2016deep}的skip connection机制。最终YOLOv3的对比如图\ref{fig:yoloPerform}
+
+\begin{figure}[h]
+\centering
+\includegraphics[height=6.5cm]{img/yolov3.jpg}
+\caption{yolov3表现}
+\label{fig:yoloPerform}
+\end{figure}
+
+\subsubsection{batch normalization}
+假定神经网络一层的输出为$z^{(1)}, z^{(2)}, .... , z^{(m)}$，对它们做如下代换：
+
+\begin{align}
+ &\mu = \frac{1}{m}\sum_iz^{(i)} \\
+ &\sigma = \frac{1}{m}\sum_i(z^{(i)}-\mu)^2 \\
+ &z^{(i)}_{norm} = \frac{z^{(i)}-\mu}{\sqrt{\sigma^2+\varepsilon}}
+\end{align}
+
+如此，使得所有分量满足均值为0，方差为1的分布。进一步地，为了能够更好的拟合，可以继续做如下变换：
+
+\begin{equation}
+\widetilde{z}^{(i)} = \gamma z_{norm}^{(i)}+\beta
+\end{equation}
+其中，$\gamma$和$\beta$都是可以学习更新的参数。\par
+Batch Norm使得每次梯度下降都能够更加的趋近最值点，也避免了隐藏层的激活值进入饱和阶段，使得每一层的值能够更好的传递下去，加速模型训练速度，更是避免了梯度弥散的情况。
+
+\subsubsection{skip connection}
+传统卷积神经网络，往往通过增加卷积层加深网络深度，从而提取更加高维的特征，提升性能，但这么做会导致一个严重的问题--梯度弥散/消失(Vanishing)，在反向传播的过程中，梯度会随着传播的进行快速下降，随着网络加深，梯度弥散会愈发严重，直接导致网络的前部分权重无法充分的训练。而在ResNet中提出的skip connection机制能够有效解决这个问题。我们一段多层卷积层（称之为块）旁边增加一条捷径，假定块的输入为x，该块的输出为f(x)，块的输出和捷径相加得到的最终输出值f(x)+x。这样，在反向传播的过程中，会多一项dx//dx的输出，也即梯度为1，如此，深层的梯度能够更完整的传递，使得浅层网络得到充分的训练。
+
+\textbf{多尺度预测}: 不同于之前的YOLO版本，最新版本的YOLO不再是仅仅生成一个特征图输出（典型值为7），而是同时对输入图像生成3个不同大小的输出特征图，输入图像大小为$416\times 416$的时候，典型值分别为13， 26， 52。这样，一幅图像，我们的算法将预测$((52\times 52)+(26\times 26)+(13\times 13))\times 3$个边界框，后面的系数3是对于特征图输出的每个cell预测3个边界框。这么做有效的减少了YOLO之前存在的对于小颗粒度物体检测准度不高的缺陷。考虑到这么做同时会加重网络预测的开销，YOLOv3同时采取了置信度阈值机制和最大值抑制的方法：当某边界框的置信度低于设定的阈值的时候，算法会过滤掉这些边界框。而最大值抑制，则主要为了避免同一物体的多次检测，详情请参考本毕设先前部分。
+
+\begin{figure}[h]
+\centering
+\includegraphics[height=4.5cm]{img/shortcut.jpg}
+\caption{shortcut}
+\label{fig:shortcut}
+\end{figure}
+
+\subsubsection{YOLO检测流程}
+以YOLOv3为例简述YOLO流程，虽然YOLO是全卷积网络，也就是对输入图像的大小并不敏感，但是考虑到实际应用的时候，我们常常会设定Batch Size大于1用以提升速度，为此将输入图像大小固定会有利于我们实现算法。且考虑到YOLOv3会在步幅分别为8,16,32的三个不同规模下进行，所以我们固定resize图像为416。接下来送入算法定义的特征提取网络，因为一共有53层，作者命其为darknet-53，如图\ref{fig:darknet53}。这部分将输出$((52\times 52)+(26\times 26)+(13\times 13))\times 3$个边界框，每个边界框有$(5+C)$个值，其中5表示为中心坐标($x_{center}, y_{center}$)，长宽值($w, h$)和物体置信度。C表示的为数据集的类别数，原论文使用的是COCO\upcite{}数据集，该值为80。进一步地，由于每一个检测框仅仅只会表示一个单一类，所以对于这些所有的边界框，我们对它们只保留C个值中最大的类别。同时，同之前所提的，对于物体置信度低于阈值的边界框项，将直接无视。对于那些置信度大于阈值的所有边界框，进行非极大值抑制的操作，依次计算两两预测框之间的交并比值，若高于设定的iou阈值，则只保留该类别得分更高的那项，重复直至不存在高于iou阈值的两个预测框。
+
+\begin{figure}[h]
+\centering
+\includegraphics[height=8.5cm]{img/darknet53.jpg}
+\caption{shortcut}
+\label{fig:darknet53}
+\end{figure}
+
+
 \subsubsection{实验表现}
 PACAL VOC 63.0 mAP    45FPS
 \subsubsection{检测实例}
+效果如图\ref{fig:yolov3}所示。直观上看，最新版的YOLO具有比之前提到的算法都更好的识别准确度和定位精度。
 
-\subsubsection{tiny-YOLO及其检测实例}
-
-\subsubsection{YOLO的其他迁移学习尝试}
-由于作者训练的足够好，对于行人这种，本身就处在物体检测目标内的问题，通过迁移学习，在数据集不够大，训练不充分的情况是无法超过之前的表现的，但是，一旦遇到数据集不存在的类的时候，迁移学习就显得非常好用了。下面是YOLOv2迁移到人脸检测的实例。
+\subsubsection{实现细节}
+1. 坐标变换
+2. 
 
 \begin{figure}[t]
 \centering 
 \subfigure[subfigure 1-1]{\label{fig:subfig:a}
-\includegraphics[width=7cm,height=5cm]{img/yolo/1.png}}
+\includegraphics[width=7cm,height=5cm]{img/yolo/1.jpg}}
 \hspace{0.01\linewidth}
 \subfigure[subfigure
  1-2]{\label{fig:subfig:b}
-\includegraphics[width=7cm,height=5cm]{img/yolo/2.png}}
+\includegraphics[width=7cm,height=5cm]{img/yolo/2.jpg}}
 
 \vfill
 
 \subfigure[subfigure 2-1]{\label{fig:subfig:a}
-\includegraphics[width=7cm,height=5cm]{img/yolo/3.png}}
+\includegraphics[width=7cm,height=5cm]{img/yolo/3.jpg}}
 \hspace{0.01\linewidth}
 \subfigure[subfigure
  2-2]{\label{fig:subfig:b}
-\includegraphics[width=7cm,height=5cm]{img/yolo/4.png}}
+\includegraphics[width=7cm,height=5cm]{img/yolo/4.jpg}}
 \caption{YOLOv3检测行人}
 
 \label{fig:yolov3}
 \end{figure}
 
-\subsection{SSD}
-\subsubsection{算法原理}
-SSD\upcite{liu2016ssd}
-\subsubsection{实验表现}
+\subsection{迁移学习尝试}
+1. 对于网络仅仅修改特征提取的最后一层，使得能够快速的在小数据集上迭代出结果
+2. 迁移学习目前存在的问题：遮挡过多无法检测，夜景，
 
 
 \section{算法的实际场景应用}
@@ -509,10 +573,10 @@ S(i,j) = (I*K)(i,j) = \sum_m\sum_nI(i+m,j+n)K(m,n)
 参数共享(parameter sharing)是指在一个模型的多个函数中使用相同的参数。在传统的神经网络中，当计算一层的输出时，权重矩阵的每一个元素只使用一次，当它乘以输入的一个元素后就再也不会用到了。作为参数共享的同义词，我们可以说一个网络含有绑定的权重(tied weights)，因为用于一个输入的权重也会被绑定在其他的权重上。在卷积神经网络中，核的每一个元素都作用在输入的每一位置上(是否考虑边界像素取决于对边界决策的设计)。 卷积运算中的参数共享保证了我么只需要学习一个参数集合，而不是对于每一位置都需要学习一个单独的参数集合。这虽然没有改变前向传播的运行时间(仍然是$O(k\times n)$)，但它显著地把模型的存储需求降低至$k$个参数，并且$k$通常要比$m$小很多个数量级。因为$m$和$n$通常有着大致相同的大小，$k$在实际中相对于$m \times n$是很小的。因此，卷积在存储需求和统计效率方面极大地优于稠密矩阵的乘法运算。
 
 \paragraph{激活函数}
-激活函数作用
+神经网络最终还是一个非线性模型，而上述的层与层的连接都是线性的，可以证明的是，无论神经网络多少层，只要全是线性的，就总可以等价成一种单层的线性表达。基于此，我们需要在神经网络中加入非线性因素。一个惯用的做法是，在每层网络层的输出位置，加上一个激活函数，也即当网络层的输出值大于激活函数的阈值时，这一层的输出才传往下一层，否则置零。常见的激活函数有tanh函数，和ReLU函数
 
 \paragraph{ReLU}
-Rectified Linear Unit
+Rectified Linear Unit,线性修正单元。考虑到tanh作为激活函数时，有着梯度消失的风险。经过研究人员的不断尝试，于AlexNet（存疑，待确认）首次提出了ReLU，ReLU本质是一个分段函数，
 
 \paragraph{池化层}
 Maxpooling
@@ -646,3 +710,13 @@ rpn:
 其中，特征映射即上文提及的feature map，这个张量的形状为$512\times 62\times 37$(三维张量格式统一表示为channel $\times$ height $\times$ width，下同不赘述)。用$3\times3$个anchor boxes在这个feature map长和宽组成的每一个点上，利用类似滑窗法的思想，自上而下，自左而右滑动。首先是利用$512\times3\times3$，共计$256$个filters得到中间层映射，该张量的形状为($256\times3\times3$)。该中间层将分为两条支线，分别进行计算。一侧通过2个形状为$256\times3\times3$的filter得到2*9个值的cls layer，分别表明该点的这9个anchor boxes对应的前景和背景的概率。另一侧通过4个形状为$256\times3\times3$的filter得到4$\times$9个值的reg layer，表明该点9个anchor boxes对应的提议框的中心坐标x,y和长宽h,w。
 
 
+$$
+f(x)=
+\begin{cases}
+1 & \text{($\tau$ = $nNt_0$(n=0,1,2,...))}\\
+\\
+-\dfrac{1}{N}<R(\tau)<1 & \text{(R($\tau$)与$\tau$呈线性关系，$-t_0+nNt_0<\tau<t_0+nNt_0$(n=0,1,2,...))}\\
+\\
+-\dfrac{1}{N} & \text{(R($\tau$)=$nt_0$(n不为零和N的整数倍))}
+\end{cases}
+$$
