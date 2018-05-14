@@ -241,7 +241,7 @@ Fast R-CNN提出兴趣区域池化层（Region of Interest (RoI) pooling），�
 \textbf{Faster R-CNN：更快速的区域卷积神经网络}
 Fast R-CNN沿用了R-CNN的选择性搜索方法来选择区域。这个通常很慢。Faster R-CNN做的主要改进是提出了区域提议网络（region proposal network, RPN）来替代选择性搜索。它是这么工作的：
 \begin{itemize}
-\item 在输入特征上放置一个$填充为1通道是256的3\times 3$卷积。这样每个像素，连同它的周围8个像素，都被映射成一个长为256的向量。
+\item 在输入特征上放置一个padding为1，通道是256的$3\times 3$卷积。这样每个像素，连同它的周围8个像素，都被映射成一个长为256的向量。
 \item 以每个像素为中心，生成$k$个大小和长宽比都预先设计好的默认边框，通常也叫锚框。
 \item 对每个边框，使用其中心像素对应的256维向量作为特征，RPN训练一个2类分类器来判断这个区域是不是含有任何感兴趣的物体还是只是背景，和一个4维输出的回归器来预测一个更准确的边框。
 \item 对于所有的锚框，个数为$nmk$如果输入大小是$n\times m$，选出被判断成还有物体的，然后前他们对应的回归器预测的边框作为输入放进接下来的RoI池化层
@@ -339,14 +339,84 @@ Faster RCNN的作者何恺明的Mask RCNN，以及专门针对检测人的论文
 
 \subsection{SSD}
 \subsubsection{算法概述}
-SSD\upcite{liu2016ssd}
-\subsubsection{实验表现}
+实际上，Faster RCNN在检测准确度和精度上已经达到了非常高的水平，但是它的检测速度实在是太慢了，难以满足实时的需求。SSD\upcite{liu2016ssd}(Single Shot MultiBox Detector)旨在平衡准确度和速度，相较于RCNN系列算法的先找提议框，再对提议框进行识别的“两步算法”不同，SSD算法试图将整个算法自图片输入到预测结果输出整合成一个整体流程。从而使整个模型简化且更加迅速。一般地，SSD首先复用一个物体识别网络，这里以VGG16为例，对于每一张输入图像，首先通过VGG16的feature extractor部分，之后原VGG16的全连接层被改写为卷积层接入其后，再连续通过4个作者定义的下采样卷积层。在这整个过程中，除了对于最终得到的特征输出外，还对其中5个不同阶段的中间特征图输出，采取边界框预测。预测则是通过在特征图的每一个点上应用default box预测多个边界框。最终将所有预测结果叠加，应用非极大值抑制得到最终的输出。值得一提的是，SSD自始至终都只用了卷积运算，所以它是全卷积网络(Fully Convolutional Network)，由于卷积操作并不受输入层的大小的限制，所以它对输入图像大小不敏感，对于任意大小的输入图像都能正常运作。
+\subsubsection{default box}
+SSD所使用的default box和Faster RCNN部分使用的anchor box非常类似，都是由不同大小和长宽比组成的包围盒，应用在特征图的每一个点上，但两者有以下区别：
+\begin{itemize}
+\item Faster RCNN只在最终的输出特征图上应用一个anchor box。而SSD则在包括最终输出和中间输出的特征图上多次使用了default box。
+\item 对于anchor box,m个aspect和n个scale会生成，$m\times n$个包围盒，但对于default box只会生成$m+n-1$个包围盒。
+\end{itemize}
+
+具体来说，对于给定的特征图的每一个点，SSD在其中心以不同大小和长宽比的边界框进行采样，假定输入的大小是$w \times h$。
+\begin{itemize}
+\item 给定大小 $s\in (0,1]$，那么生成的边界框形状是 $ws \times hs$
+\item 给定长宽比 $r > 0$，那么生成的边界框形状是 $w\sqrt{r} \times \dfrac{h}{\sqrt{r}}$
+\end {itemize}
+
+default box如图\ref{fig:defaultBox}所示
+
+\begin{figure}[h]
+\centering
+\includegraphics[height=5.5cm]{img/defaultBox.png}
+\caption{default box示意图}
+\label{fig:defaultBox}
+\end{figure}
+
+另外，对于不同阶段的特征图，default box采用了不同大小以更好的拟合边界框：高维度的特征图有着较大的包围盒尺寸。
+
+\subsubsection{1 $\times$ 1的卷积}
+SSD运算过程中，多次使用了$1 \times 1$的卷积，这种卷积由Network in Network\upcite{lin2013network}论文首次提出，并由GoogLeNet\upcite{szegedy2015going}的应用而获得广泛推广。
+
+$1\times 1$卷积的作用可以理解为对输入层的每个点应用一个全连接层。具体的步骤是，对于输入层，该卷积算子遍历输入值信道(channel)的每一个值，并加权累加它们，输出到一个ReLU层进行非线性转换。而输出特征图的信道数等于卷积算子的数量(\#filter)。\par
+
+应用这种算子最主要的原因是可以极大的减少运算量。以VGG16版本输入图像大小为300的SSD举例。Conv7大小为$19 \times 19 \times 1024$依次应用$1 \times 1 \times 256$和$3 \times 3 \times 512 stride = 2$的卷积得到大小为$10 \times 10 \times 512$的输出Con8\_2。
+\begin{itemize}
+\item 在不使用$1 \times 1$卷积的情况下，参数量为$10 \times 10\times 512\times 3 \times 3 \times 1024 /2 \approx2.36$亿
+\item 在使用$1 \times 1$卷积的时候，参数为分两部分，第一部分是从输入层Conv7经过$1\times 1$卷积的中间输出，为$19\times 19\times 256\times 1024\approx 0.59$亿。第二部分由中间输出到Con8\_2,参数量为$10\times 10\times 512\times 3\times 3\times 256/2 \approx0.95$亿，共为$1.54$亿
+\end{itemize}
+
+综上，在使用了$1\times 1$的卷积后，参数减少了约35\%。这对追求效率的算法而言，是个非常有益的。因此这样的卷积也常常被称之为瓶颈（bottlenect）。同时大量的实验证明，对于瓶颈选用合适的信道数是可以保证性能不下降的。
+
+\subsubsection{检测实例}
+
+如图\ref{fig:ssdDetect}
+
+\begin{figure}[t]
+\centering 
+\subfigure[subfigure 1-1]{\label{fig:subfig:a}
+\includegraphics[width=7cm,height=5cm]{img/ssd/1.jpg}}
+\hspace{0.01\linewidth}
+\subfigure[subfigure
+ 1-2]{\label{fig:subfig:b}
+\includegraphics[width=7cm,height=5cm]{img/ssd/2.jpg}}
+
+\vfill
+
+\subfigure[subfigure 2-1]{\label{fig:subfig:a}
+\includegraphics[width=7cm,height=5cm]{img/ssd/3.jpg}}
+\hspace{0.01\linewidth}
+\subfigure[subfigure
+ 2-2]{\label{fig:subfig:b}
+\includegraphics[width=7cm,height=5cm]{img/ssd/4.jpg}}
+\caption{SSD300检测行人}
+
+\label{fig:ssdDetect}
+\end{figure}
+
+
+\subsubsection{算法性能提升}
+1. 高分辨率  512
+2. 更好的特征提取网络 ResNet
+
+\subsubsection{其他进展}
+DSSD
+
 
 \subsection{YOLO}
 \subsubsection{算法概述}
 YOLO(You only look once)，自发布至今已迭代更新三个版本。v1\upcite{redmon2016you},v2\upcite{redmon2017yolo9000},v3\upcite{}。\par
-\textbf{YOLOv1} 不同于，Faster-RCNN等two-stage算法，YOLO将整个算法流程整合成了一个回归问题，故它是one-stage算法。整个网络由24个卷积层和2个全连接层组成。最终输出结果为一个S$\times S \times(5\times B + C)$的张量，S表示输出特征图的大小，典型值为7，B代表特征图的每个cell上预测的边界框的数量，典型值为2，C为总共需要预测的数量，论文训练使用的是PASCAL VOC数据集，所以C=20。对于输出特征图的每一个cell点，有它预测的两个边界框的中心坐标和长宽，以及它作为准确边界框的置信度。剩下的20个值分别为每个类别的概率。通过这样的设计，训练得到的模型，可以直接从输入图像得到检测结果，速度非常的快。YOLOv1在相对准确的前提下，速度大幅度提高。但YOLOv1的缺点也非常明显，由于他对于特征图输出的每个cell只预测两个边界框，且同类型的物体中心落到同一个cell的话，只会预测其中一个，这直接导致了YOLOv1对于同物体密集型的场景适用性很差，比如交通行人检测。同时，YOLOv1的边界框是相对输入图像大小的，从而很难学习不同长宽比的物体，这也使得他的定位准确度较差。且YOLOv1的特征图大小是单一的，为$7\times 7$，这使得他对于颗粒度小的物体并不敏感。同时，由于最后的分类层是传统的全连接层，这导致YOLOv1的参数非常的多，且要求输入图像大小固定。\par
-\textbf{YOLOv2}  YOLOv2在YOLOv1的模型基础上，增加了多种尝试，使得在维持高检测速度的前提下，大幅提高准确度。引入Batch Normalization\upcite{ioffe2015batch}机制，使用高分辨率图像获得更多特征，使用anchor boxes机制，边界框聚类技术最终大幅提高了检测准确度和定位精度。\par
+\textbf{YOLOv1} 不同于Faster-RCNN等two-stage算法，YOLO和SSD一样，将整个算法流程整合成了一个回归问题，故它是one-stage算法。整个网络由24个卷积层和2个全连接层组成。最终输出结果为一个S$\times S \times(5\times B + C)$的张量，S表示输出特征图的大小，典型值为7，B代表特征图的每个cell上预测的边界框的数量，典型值为2，C为总共需要预测的数量，论文训练使用的是PASCAL VOC数据集，所以C=20。对于输出特征图的每一个cell点，有它预测的两个边界框的中心坐标和长宽，以及它作为准确边界框的置信度。剩下的20个值分别为每个类别的概率。通过这样的设计，训练得到的模型，可以直接从输入图像得到检测结果，速度非常的快。YOLOv1在相对准确的前提下，速度大幅度提高。但YOLOv1的缺点也非常明显，由于他对于特征图输出的每个cell只预测两个边界框，且同类型的物体中心落到同一个cell的话，只会预测其中一个，这直接导致了YOLOv1对于同物体密集型的场景适用性很差，比如交通行人检测。同时，YOLOv1的边界框是相对输入图像大小的，从而很难学习不同长宽比的物体，这也使得他的定位准确度较差。且YOLOv1的特征图大小是单一的，为$7\times 7$，这使得他对于颗粒度小的物体并不敏感。同时，由于最后的分类层是传统的全连接层，这导致YOLOv1的参数非常的多，且要求输入图像大小固定。\par
+\textbf{YOLOv2}  YOLOv2在YOLOv1的模型基础上，增加了多种尝试，使得在维持高检测速度的前提下，大幅提高准确度。引入Batch Normalization\upcite{ioffe2015batch}机制，使用高分辨率图像如$448 \times 448$，从而获得更多特征，使用anchor boxes机制，边界框聚类技术最终大幅提高了检测准确度和定位精度。\par
 \textbf{YOLOv3}  相较于YOLOv2，最新版本的YOLO使用了多尺度预测的方法，聚类边界框等技巧提高准确度，以及相较于YOLOv2的darknet-19更深的特征提取网络，该网络里增添了ResNet\upcite{he2016deep}的skip connection机制。最终YOLOv3的对比如图\ref{fig:yoloPerform}
 
 \begin{figure}[h]
@@ -373,10 +443,11 @@ YOLO(You only look once)，自发布至今已迭代更新三个版本。v1\upcit
 其中，$\gamma$和$\beta$都是可以学习更新的参数。\par
 Batch Norm使得每次梯度下降都能够更加的趋近最值点，也避免了隐藏层的激活值进入饱和阶段，使得每一层的值能够更好的传递下去，加速模型训练速度，更是避免了梯度弥散的情况。
 
-\subsubsection{skip connection}
+\subsubsection{Skip Connection}
 传统卷积神经网络，往往通过增加卷积层加深网络深度，从而提取更加高维的特征，提升性能，但这么做会导致一个严重的问题--梯度弥散/消失(Vanishing)，在反向传播的过程中，梯度会随着传播的进行快速下降，随着网络加深，梯度弥散会愈发严重，直接导致网络的前部分权重无法充分的训练。而在ResNet中提出的skip connection机制能够有效解决这个问题。我们一段多层卷积层（称之为块）旁边增加一条捷径，假定块的输入为x，该块的输出为f(x)，块的输出和捷径相加得到的最终输出值f(x)+x。这样，在反向传播的过程中，会多一项dx//dx的输出，也即梯度为1，如此，深层的梯度能够更完整的传递，使得浅层网络得到充分的训练。
 
-\textbf{多尺度预测}: 不同于之前的YOLO版本，最新版本的YOLO不再是仅仅生成一个特征图输出（典型值为7），而是同时对输入图像生成3个不同大小的输出特征图，输入图像大小为$416\times 416$的时候，典型值分别为13， 26， 52。这样，一幅图像，我们的算法将预测$((52\times 52)+(26\times 26)+(13\times 13))\times 3$个边界框，后面的系数3是对于特征图输出的每个cell预测3个边界框。这么做有效的减少了YOLO之前存在的对于小颗粒度物体检测准度不高的缺陷。考虑到这么做同时会加重网络预测的开销，YOLOv3同时采取了置信度阈值机制和最大值抑制的方法：当某边界框的置信度低于设定的阈值的时候，算法会过滤掉这些边界框。而最大值抑制，则主要为了避免同一物体的多次检测，详情请参考本毕设先前部分。
+\subsubsection{多尺度预测}
+不同于之前的YOLO版本，最新版本的YOLO不再是仅仅生成一个特征图输出（典型值为7），而是同时对输入图像生成3个不同大小的输出特征图，输入图像大小为$416\times 416$的时候，典型值分别为13， 26， 52。这样，一幅图像，我们的算法将预测$((52\times 52)+(26\times 26)+(13\times 13))\times 3$个边界框，后面的系数3是对于特征图输出的每个cell预测3个边界框。这么做有效的减少了YOLO之前存在的对于小颗粒度物体检测准度不高的缺陷。考虑到这么做同时会加重网络预测的开销，YOLOv3同时采取了置信度阈值机制和最大值抑制的方法：当某边界框的置信度低于设定的阈值的时候，算法会过滤掉这些边界框。而最大值抑制，则主要为了避免同一物体的多次检测，详情请参考本毕设先前部分。
 
 \begin{figure}[h]
 \centering
@@ -386,7 +457,8 @@ Batch Norm使得每次梯度下降都能够更加的趋近最值点，也避免�
 \end{figure}
 
 \subsubsection{YOLO检测流程}
-以YOLOv3为例简述YOLO流程，虽然YOLO是全卷积网络，也就是对输入图像的大小并不敏感，但是考虑到实际应用的时候，我们常常会设定Batch Size大于1用以提升速度，为此将输入图像大小固定会有利于我们实现算法。且考虑到YOLOv3会在步幅分别为8,16,32的三个不同规模下进行，所以我们固定resize图像为416。接下来送入算法定义的特征提取网络，因为一共有53层，作者命其为darknet-53，如图\ref{fig:darknet53}。这部分将输出$((52\times 52)+(26\times 26)+(13\times 13))\times 3$个边界框，每个边界框有$(5+C)$个值，其中5表示为中心坐标($x_{center}, y_{center}$)，长宽值($w, h$)和物体置信度。C表示的为数据集的类别数，原论文使用的是COCO\upcite{}数据集，该值为80。进一步地，由于每一个检测框仅仅只会表示一个单一类，所以对于这些所有的边界框，我们对它们只保留C个值中最大的类别。同时，同之前所提的，对于物体置信度低于阈值的边界框项，将直接无视。对于那些置信度大于阈值的所有边界框，进行非极大值抑制的操作，依次计算两两预测框之间的交并比值，若高于设定的iou阈值，则只保留该类别得分更高的那项，重复直至不存在高于iou阈值的两个预测框。
+\textbf{YOLO}:  YOLOv1实际上的流程非常简单，如图\ref{}， 所示
+\textbf{YOLOv3}：虽然YOLOv3是全卷积网络，也就是对输入图像的大小并不敏感，但是考虑到实际应用的时候，我们常常会设定Batch Size大于1用以提升速度，为此将输入图像大小固定会有利于我们实现算法。且考虑到YOLOv3会在步幅分别为8,16,32的三个不同规模下进行，所以我们固定resize图像为416。接下来送入算法定义的特征提取网络，因为一共有53层，作者命其为darknet-53，如图\ref{fig:darknet53}。这部分将输出$((52\times 52)+(26\times 26)+(13\times 13))\times 3$个边界框，每个边界框有$(5+C)$个值，其中5表示为中心坐标($x_{center}, y_{center}$)，长宽值($w, h$)和物体置信度。C表示的为数据集的类别数，原论文使用的是COCO\upcite{}数据集，该值为80。进一步地，由于每一个检测框仅仅只会表示一个单一类，所以对于这些所有的边界框，我们对它们只保留C个值中最大的类别。同时，同之前所提的，对于物体置信度低于阈值的边界框项，将直接无视。对于那些置信度大于阈值的所有边界框，进行非极大值抑制的操作，依次计算两两预测框之间的交并比值，若高于设定的iou阈值，则只保留该类别得分更高的那项，重复直至不存在高于iou阈值的两个预测框。
 
 \begin{figure}[h]
 \centering
@@ -427,13 +499,17 @@ PACAL VOC 63.0 mAP    45FPS
 \label{fig:yolov3}
 \end{figure}
 
-\subsection{迁移学习尝试}
+\section{迁移学习尝试}
+考虑到SSD在中间层多次使用预测，Faster RCNN结构复杂，上述三种算法最适合应用微调策略是YOLO。
 1. 对于网络仅仅修改特征提取的最后一层，使得能够快速的在小数据集上迭代出结果
 2. 迁移学习目前存在的问题：遮挡过多无法检测，夜景，
 
 
 \section{算法的实际场景应用}
 通过迁移学习的方法，在充分训练的前提下，这些目标检测算法可以非常适合的迁移到诸如人脸检测，交通信号牌检测等等其他问题上去。
+
+\section{一些失败的尝试}
+
 
 \section*{致谢}
 \addcontentsline{toc}{section}{致谢}
