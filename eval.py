@@ -76,23 +76,25 @@ def compute_iou():
                 mat[i][j] = iou
             #ans += '\n'
         
-        thresh = 0.5
-        df = pd.DataFrame(mat)
-        totalPredictNum = df.index.shape[0]
-        truePredictNum = 0
-        for i in range(df.columns.shape[0]):
-            tmpIndex = df[i].argmax()
-            if df[i][tmpIndex] > thresh:
-                truePredictNum += 1
+        threshList = [0.2,0.3,0.4,0.5]
+        for thresh in threshList:
 
-            df = df.drop(tmpIndex)
-            if df.index.shape[0] == 0:
-                break
+            df = pd.DataFrame(mat)
+            totalPredictNum = df.index.shape[0]
+            truePredictNum = 0
+            for i in range(df.columns.shape[0]):
+                tmpIndex = df[i].argmax()
+                if df[i][tmpIndex] > thresh:
+                    truePredictNum += 1
 
-        precision = truePredictNum/totalPredictNum    
-        
-        with open(precisionPath,"a+") as fp:
-            fp.write(str(precision)+'\n')
+                df = df.drop(tmpIndex)
+                if df.index.shape[0] == 0:
+                    break
+
+            precision = truePredictNum/totalPredictNum    
+            
+            with open(precisionPath+"{}".format(thresh),"a+") as fp:
+                fp.write(str(precision)+'\n')
 
         #outp = open(savePath+'/'+fileName,"w")
         #outp.write(ans)
