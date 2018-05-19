@@ -25,11 +25,12 @@ def compute_iou():
     #labelPath = "F:\PASCAL_VOC\VOCdevkit\VOC2007\labels"
     #savePath = "F:\PASCAL_VOC\VOCdevkit\VOC2007\yoloIOU"
 
-    predictPath = "/home/wrc/PASCAL_VOC/VOCdevkit/VOC2007/rcnnpredict"
-    labelPath = "/home/wrc/PASCAL_VOC/VOCdevkit/VOC2007/labels"
-    savePath = "/home/wrc/PASCAL_VOC/VOCdevkit/VOC2007/rcnnIOU"
+    predictPath = "F:/PASCAL_VOC_LINUX/PASCAL_VOC/VOCdevkit/VOC2007/rcnnpredict"
+    labelPath = "F:/PASCAL_VOC_LINUX/PASCAL_VOC/VOCdevkit/VOC2007/labels"
+    savePath = "F:/PASCAL_VOC_LINUX/PASCAL_VOC/VOCdevkit/VOC2007/rcnnIOU"
 
     precisionPath = "./rcnn_precision.txt"
+    recallPath = "./rcnn_recall.txt"
 
     totalFile = os.listdir(predictPath)
 
@@ -69,6 +70,8 @@ def compute_iou():
 
         len1 = len(bbox1)
         len2 = len(bbox2)
+        totalGtNum = len2
+        #set_trace()
 
         #ans = ""
         mat = np.ones((len1, len2))
@@ -85,6 +88,7 @@ def compute_iou():
         for thresh in thresh_list:
             df = pd.DataFrame(mat)
             totalPredictNum = df.index.shape[0]
+            
             truePredictNum = 0
             for i in range(df.columns.shape[0]):
                 tmpIndex = df[i].argmax()
@@ -97,10 +101,14 @@ def compute_iou():
                     break
             
             #set_trace()
-            precision = truePredictNum/totalPredictNum    
+            precision = truePredictNum/totalPredictNum
+            recall = truePredictNum/totalGtNum
             
             with open(precisionPath+"-thresh={}".format(thresh),"a+") as fp:
                 fp.write(str(precision)+'\n')
+
+            with open(recallPath+"-thresh={}".format(thresh), "a+") as fp:
+                fp.write(str(recall)+'\n')
         
         #set_trace()
         #outp = open(savePath+'/'+fileName,"w")
