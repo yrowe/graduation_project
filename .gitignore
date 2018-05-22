@@ -2,3 +2,5 @@ checkpoints/
 .ipynb_checkpoints/
 *.pyc
 *.avi
+*.pkl
+*.pth
