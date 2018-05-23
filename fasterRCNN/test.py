@@ -6,9 +6,10 @@ from lib.cascade.trainer import FasterRCNNTrainer
 from tools.util import  read_image
 from tools.vis_tool import vis_bbox, predict
 from tools import array_tool as at
+from ipdb import set_trace
 
 img = read_image('tst.jpg')
-set_trace()
+#set_trace()
 img = t.from_numpy(img)[None]
 
 faster_rcnn = FasterRCNNVGG16()

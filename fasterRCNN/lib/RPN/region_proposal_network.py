@@ -1,6 +1,7 @@
 import torch.nn as nn
 import numpy as np
 from torch.nn import functional as F
+from ipdb import set_trace
 
 from lib.utils.bbox_tools import generate_anchor_base
 from lib.utils.creator_tool import ProposalCreator
@@ -82,12 +83,35 @@ class RegionProposalNetwork(nn.Module):
 
 		'''
 		n, _, hh, ww = base_feat.shape            #ignoring the batchsize > 1 circustance, we can simply fix n to 1.
+		#(hh, ww) = (37, 50)
 		#Generate proposals from bbox deltas and shifted anchors.
+		set_trace()
+		#self.feat_stride = 16
+		#self.anchor_base = 
+		'''
+		array([[ -37.254833,  -82.50967 ,   53.254833,   98.50967 ],
+       [ -82.50967 , -173.01933 ,   98.50967 ,  189.01933 ],
+       [-173.01933 , -354.03867 ,  189.01933 ,  370.03867 ],
+       [ -56.      ,  -56.      ,   72.      ,   72.      ],
+       [-120.      , -120.      ,  136.      ,  136.      ],
+       [-248.      , -248.      ,  264.      ,  264.      ],
+       [ -82.50967 ,  -37.254833,   98.50967 ,   53.254833],
+       [-173.01933 ,  -82.50967 ,  189.01933 ,   98.50967 ],
+       [-354.03867 , -173.01933 ,  370.03867 ,  189.01933 ]],
+       dtype=float32)
+        shape = (9, 4)
+
+		'''
 		anchor = _generate_anchors_all(
 				np.array(self.anchor_base),
 				self.feat_stride, hh, ww)
 
+		'''
+		anchor.shape = (16650, 4)
+		'''
+
 		n_anchor = self.anchor_base.shape[0]    # need to confirm!
+		#n_anchor = 9
 
 		layer1 = F.relu(self.conv1(base_feat))
 
@@ -99,7 +123,7 @@ class RegionProposalNetwork(nn.Module):
 		rpn_scores = self.score(layer1)								#shape[1, 18, 37, 50]
 		rpn_scores = rpn_scores.permute(0, 2, 3, 1).contiguous()       #shape [1, 37, 50 ,18]
 		rpn_fg_scores = rpn_scores.view(1, hh, ww, n_anchor, 2)[:, :, :, :, 1].contiguous().view(1, -1)  #shape [1, 16650]
-		rpn_scores = rpn_scores.view(1, -1, 2)
+		rpn_scores = rpn_scores.view(1, -1, 2) #shape [1, 16650, 2]
 
 		# !TODO  this is a instance of ProposalCreator, it returns a ndarray.
 		rois = self.proposal_layer(
@@ -107,8 +131,13 @@ class RegionProposalNetwork(nn.Module):
 				rpn_fg_scores[0].cpu().data.numpy(),
 				anchor, img_size, scale=scale
 				)
+		#rois.shape = (2000, 4)
+		#img_size = (600, 800)
+		#scale = 1.25
+
 
 		rois_indices = np.zeros(len(rois, ),dtype=np.int32)
+		#rois_indices.shape = (2000,0)
 
 		return rpn_locs, rpn_scores, rois, rois_indices, anchor
 		
