@@ -4,20 +4,104 @@ import torchvision.models
 from ipdb import set_trace
 import numpy as np
 import cv2
+from torch.nn import functional as F
 
 
 class FasterRCNNTrainer(nn.Module):
     def __init__(self, fasterRCNN):
         super(FasterRCNNTrainer, self).__init__()
         self.faster_rcnn = fasterRCNN
+        self.anchor_base = np.array([[ -37.254833,  -82.50967 ,   53.254833,   98.50967 ],
+                                     [ -82.50967 , -173.01933 ,   98.50967 ,  189.01933 ],
+                                     [-173.01933 , -354.03867 ,  189.01933 ,  370.03867 ],
+                                     [ -56.      ,  -56.      ,   72.      ,   72.      ],
+                                     [-120.      , -120.      ,  136.      ,  136.      ],
+                                     [-248.      , -248.      ,  264.      ,  264.      ],
+                                     [ -82.50967 ,  -37.254833,   98.50967 ,   53.254833],
+                                     [-173.01933 ,  -82.50967 ,  189.01933 ,   98.50967 ],
+                                     [-354.03867 , -173.01933 ,  370.03867 ,  189.01933 ]],
+                                     dtype=np.float32)
+        self.feat_stride = 16
 
     def forward(self, x):
         #extract feature network, reuse of vgg16.
         x = self.faster_rcnn.extractor(x)
-        #now we got [1, 3, 600, 800]
-        
+        #now we got feature map
+        h = x.shape[2]
+        w = x.shape[3]
 
+        anchor = generate_anchors(self.anchor_base, 
+                   self.feat_stride, h, w)
+
+        n_anchor = self.anchor_base.shape[0]
+        
+        #one more 3*3 conv to extractor features.
+        layer1 = F.relu(self.rpn.conv1(x))
+
+        #now we need to forward into 2 paths.
+        #location path:
+        rpn_locs = self.rpn.loc(layer1)
+        rpn_locs = rpn_locs.permute(0, 2, 3, 1).contiguous().view(1, -1, 4)
+        
+        #score path:
+        rpn_scores = self.rpn.score(layer1)
+        rpn_scores = rpn_scores.permute(0, 2, 3, 1).contiguous()
+        rpn_fg_scores = rpn_scores.view(1, h, w, n_anchor, 2)[:, :, :, :, 1].contiguous().view(1, -1)
+        rois = self.proposal_layer(
+                rpn_locs[0].cpu().data.numpy(),
+                rpn_fg_scores[0].cpu().data.numpy(),
+                anchor, img_size, scale=scale)
+
+        rois_indices = np.zeros(len(rois, ), dtype=np.int32)
         return x
+
+    def proposal_layer(self, loc, score, anchor, img_size, scale):
+        nms_thresh = 0.7
+        pre_nms = 6000
+        post_nms = 300
+        min_size = 16
+
+        roi = loc2bbox(anchor, loc)
+
+        roi[:, [0, 2]] = np.clip(roi[:, [0, 2]], 0, img_size[0])
+        roi[:, [1, 3]] = np.clip(roi[:, [1, 3]], 0, img_size[1])
+
+        min_size = min_size*scale
+        hs = roi[:, 2] - roi[:, 0]
+        ws = roi[:, 3] - roi[:, 1]
+
+        keep = np.where((hs >= min_size)&(ws >= min_size))[0]
+        roi = roi[keep, :]
+        score = score[keep]
+
+        order = score.argsort()[::-1]
+        order = order[:pre_nms]
+        roi = roi[order, :]
+
+
+        keep = keep[:post_nms]
+        roi = roi[keep]
+
+        return roi
+
+
+
+
+def generate_anchors(anchor_base, feat_stride, height, width):
+    xx = np.arange(0, width*feat_stride, feat_stride)
+    yy = np.arange(0, height*feat_stride, feat_stride)
+
+    shift_x, shift_y = np.meshgrid(xx, yy)
+    shift = np.stack((shift_y.ravel(), shift_x.ravel(),
+                      shift_y.ravel(), shift_x.ravel()), axis = 1)
+
+    A = anchor_base.shape[0]
+    K = shift.shape[0]
+
+    anchor = anchor_base.reshape((1, A, 4)) + shift.reshape((1, K, 4)).transpose((1,0,2))
+    anchor = anchor.reshape((K*A, 4)).astype(np.float32)
+
+    return anchor
 
 
 class FasterRCNNVGG16(nn.Module):
@@ -94,7 +178,8 @@ input_x.unsqueeze_(0)
 #set_trace()
 input_x = input_x.cuda()
 
-outp = net(input_x)
+with torch.no_grad():
+    outp = net(input_x)
 """
 outp.shape
 torch.Size([1, 512, 14, 14])
