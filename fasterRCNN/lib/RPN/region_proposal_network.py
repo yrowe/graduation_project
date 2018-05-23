@@ -85,7 +85,7 @@ class RegionProposalNetwork(nn.Module):
 		n, _, hh, ww = base_feat.shape            #ignoring the batchsize > 1 circustance, we can simply fix n to 1.
 		#(hh, ww) = (37, 50)
 		#Generate proposals from bbox deltas and shifted anchors.
-		set_trace()
+		#set_trace()
 		#self.feat_stride = 16
 		#self.anchor_base = 
 		'''

@@ -60,6 +60,7 @@ class FasterRCNNTrainer(nn.Module):
         pre_nms = 6000
         post_nms = 300
         min_size = 16
+        set_trace()
 
         roi = loc2bbox(anchor, loc)
 
