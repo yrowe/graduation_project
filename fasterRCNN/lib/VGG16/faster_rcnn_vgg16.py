@@ -7,7 +7,7 @@ from lib.RPN.region_proposal_network import RegionProposalNetwork
 from lib.RoI.roi_module import RoIPooling2D
 from tools import array_tool as at 
 from tools.config import opt 
-
+from ipdb import set_trace
 
 class FasterRCNNVGG16(FasterRCNN):
 	'''this a specific FasterRCNN model based on VGG16 recongnization network.
@@ -98,6 +98,7 @@ class VGG16RoIHead(nn.Module):
 
 		pool = self.roi(x, indices_and_rois)   #128*512*7*7    after RoI pooling layer
 		pool = pool.view(pool.size(0), -1)     #128 * 25088  inorder to share weight.
+		set_trace()
 		
 		fc7 = self.classifier(pool)
 		roi_cls_locs = self.cls_loc(fc7)

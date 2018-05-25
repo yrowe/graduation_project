@@ -23,8 +23,10 @@ class FasterRCNNTrainer(nn.Module):
                                      dtype=np.float32)
         self.feat_stride = 16
 
-    def forward(self, x):
+    def forward(self, x, scale):
         #extract feature network, reuse of vgg16.
+        #input format = [B, C, H, W]
+        img_size = (x.shape[2], x.shape[3])
         x = self.faster_rcnn.extractor(x)
         #now we got feature map
         h = x.shape[2]
@@ -33,18 +35,16 @@ class FasterRCNNTrainer(nn.Module):
         anchor = generate_anchors(self.anchor_base, 
                    self.feat_stride, h, w)
 
-        n_anchor = self.anchor_base.shape[0]
-        
+        n_anchor = self.anchor_base.shape[0]    
         #one more 3*3 conv to extractor features.
-        layer1 = F.relu(self.rpn.conv1(x))
-
+        layer1 = F.relu(self.faster_rcnn.rpn.conv1(x))
         #now we need to forward into 2 paths.
         #location path:
-        rpn_locs = self.rpn.loc(layer1)
+        rpn_locs = self.faster_rcnn.rpn.loc(layer1)
         rpn_locs = rpn_locs.permute(0, 2, 3, 1).contiguous().view(1, -1, 4)
         
         #score path:
-        rpn_scores = self.rpn.score(layer1)
+        rpn_scores = self.faster_rcnn.rpn.score(layer1)
         rpn_scores = rpn_scores.permute(0, 2, 3, 1).contiguous()
         rpn_fg_scores = rpn_scores.view(1, h, w, n_anchor, 2)[:, :, :, :, 1].contiguous().view(1, -1)
         rois = self.proposal_layer(
@@ -53,20 +53,21 @@ class FasterRCNNTrainer(nn.Module):
                 anchor, img_size, scale=scale)
 
         rois_indices = np.zeros(len(rois, ), dtype=np.int32)
-        return x
+        roi_cls_locs, roi_scores = self.head(x, rois, rois_indices)
+
+        #torch.nn.AdaptiveMaxPool2d
+        
+        return roi_cls_locs, roi_scores, rois
 
     def proposal_layer(self, loc, score, anchor, img_size, scale):
         nms_thresh = 0.7
         pre_nms = 6000
         post_nms = 300
         min_size = 16
-        set_trace()
-
         roi = loc2bbox(anchor, loc)
 
         roi[:, [0, 2]] = np.clip(roi[:, [0, 2]], 0, img_size[0])
         roi[:, [1, 3]] = np.clip(roi[:, [1, 3]], 0, img_size[1])
-
         min_size = min_size*scale
         hs = roi[:, 2] - roi[:, 0]
         ws = roi[:, 3] - roi[:, 1]
@@ -74,19 +75,91 @@ class FasterRCNNTrainer(nn.Module):
         keep = np.where((hs >= min_size)&(ws >= min_size))[0]
         roi = roi[keep, :]
         score = score[keep]
-
         order = score.argsort()[::-1]
         order = order[:pre_nms]
         roi = roi[order, :]
-
-
+        keep = non_maximum_suppress(roi, nms_thresh)
         keep = keep[:post_nms]
         roi = roi[keep]
 
         return roi
 
+def bbox_iou(box1, box2):
+    b1_x1, b1_y1, b1_x2, b1_y2 = box1[:,0], box1[:,1], box1[:,2], box1[:,3]
+    b2_x1, b2_y1, b2_x2, b2_y2 = box2[:,0], box2[:,1], box2[:,2], box2[:,3]
+    
+    #get the corrdinates of the intersection rectangle
+    inter_rect_x1 =  torch.max(b1_x1, b2_x1)
+    inter_rect_y1 =  torch.max(b1_y1, b2_y1)
+    inter_rect_x2 =  torch.min(b1_x2, b2_x2)
+    inter_rect_y2 =  torch.min(b1_y2, b2_y2)
+    
+    #Intersection area
+    inter_area = torch.clamp(inter_rect_x2 - inter_rect_x1 + 1, min=0) * torch.clamp(inter_rect_y2 - inter_rect_y1 + 1, min=0)
 
+    #Union Area
+    b1_area = (b1_x2 - b1_x1 + 1)*(b1_y2 - b1_y1 + 1)
+    b2_area = (b2_x2 - b2_x1 + 1)*(b2_y2 - b2_y1 + 1)
+    
+    iou = inter_area / (b1_area + b2_area - inter_area)
 
+    return iou
+
+def non_maximum_suppress(roi, nms_thresh):
+    roi_size = roi.shape[0]
+    roi = torch.from_numpy(roi)
+
+    discard_index = []
+    for i in range(roi_size):
+        if i in discard_index:
+            continue
+        try:
+            ious = bbox_iou(roi[i].unsqueeze(0), roi[i+1:])
+        except ValueError:
+            break
+        except IndexError:
+            break
+
+        #set_trace()
+
+        tmp_index = np.where(ious > nms_thresh)[0]
+        for k in tmp_index:
+            discard_index.append(k+i+1)
+    
+    all_index = range(roi_size)
+    keep = list(set(all_index).difference(set(discard_index)))
+    #set_trace()
+    keep.sort()
+    return keep
+
+def loc2bbox(src_bbox, loc):
+    if src_bbox.shape[0] == 0:
+        return np.zeros((0, 4), dtype=loc.dtype)
+
+    p_h = src_bbox[:, 2] - src_bbox[:, 0]
+    p_w = src_bbox[:, 3] - src_bbox[:, 1]
+    p_y = src_bbox[:, 0] + 0.5 * p_h
+    p_x = src_bbox[:, 1] + 0.5 * p_w
+
+    t_y = loc[:, 0]
+    t_x = loc[:, 1]
+    t_h = loc[:, 2]
+    t_w = loc[:, 3]
+
+    ctr_y = t_y * p_h + p_y
+    ctr_x = t_x * p_w + p_x
+
+    h = np.exp(t_h) * p_h
+    w = np.exp(t_w) * p_w
+
+    roi = np.zeros(loc.shape, dtype=loc.dtype)
+
+    roi[:, 0:1] = (ctr_y - 0.5*h)[:, np.newaxis]
+    roi[:, 1:2] = (ctr_x - 0.5*w)[:, np.newaxis]
+    roi[:, 2:3] = (ctr_y + 0.5*h)[:, np.newaxis]
+    roi[:, 3:4] = (ctr_x + 0.5*w)[:, np.newaxis]
+
+    return roi
 
 def generate_anchors(anchor_base, feat_stride, height, width):
     xx = np.arange(0, width*feat_stride, feat_stride)
@@ -160,7 +233,7 @@ def preprocess(img, min_size=600, max_size=1000):
     img = (img - mean).astype(np.float32, copy=True)
     #return shape should be [C, H ,W]
     img = np.transpose(img, (2,0,1))
-    return img
+    return img, scale
 
 extractor, classifier = vgg16_decompose()
 rpn = RegionProposalNetwork()
@@ -169,23 +242,20 @@ head = VGG16RoIHead(classifier)
 tst = FasterRCNNVGG16(extractor, rpn, head)
 net = FasterRCNNTrainer(tst).cuda()
 
+print("loading model...")
 net.load_state_dict(torch.load('fasterRCNN.pth'))
+print("successfully load faster rcnn.")
+
+net.eval()
 
 img = cv2.imread("1.jpg")
-img = preprocess(img)
-
+img, scale = preprocess(img)
 input_x = torch.from_numpy(img)
 input_x.unsqueeze_(0)
 #set_trace()
 input_x = input_x.cuda()
 
 with torch.no_grad():
-    outp = net(input_x)
-"""
-outp.shape
-torch.Size([1, 512, 14, 14])
-"""
+    roi_cls_locs, roi_scores, rois = net(input_x, scale)
 
-#already finish load pretrained model
-#!TODO forward process
 set_trace()
