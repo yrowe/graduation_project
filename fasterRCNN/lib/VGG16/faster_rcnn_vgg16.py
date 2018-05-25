@@ -94,15 +94,20 @@ class VGG16RoIHead(nn.Module):
 		indices_and_rois = torch.cat([roi_indices[:, None],rois],dim=1)
 		#(B, ymin, xmin, ymax, xmax) -> (B, xmin, ymin, xmax, ymax)
 		xy_indices_and_rois = indices_and_rois[:, [0,2,1,4,3]]
+		# xy_indices_and_rois shape [300, 5]
 		indices_and_rois = torch.autograd.Variable(xy_indices_and_rois.contiguous())
+		#indices_and_rois shape [300, 5]
 
 		pool = self.roi(x, indices_and_rois)   #128*512*7*7    after RoI pooling layer
+		#same as input, when testing.  300*512*7*7
 		pool = pool.view(pool.size(0), -1)     #128 * 25088  inorder to share weight.
 		set_trace()
 		
 		fc7 = self.classifier(pool)
 		roi_cls_locs = self.cls_loc(fc7)
+		#300 * 84
 		roi_scores = self.score(fc7)
+		#300 * 21
 
 		return roi_cls_locs, roi_scores
 
