@@ -5,12 +5,14 @@ from ipdb import set_trace
 import numpy as np
 import cv2
 from torch.nn import functional as F
+import time
 
 
 class FasterRCNNTrainer(nn.Module):
     def __init__(self, fasterRCNN):
         super(FasterRCNNTrainer, self).__init__()
         self.faster_rcnn = fasterRCNN
+        #generate anchor_base?
         self.anchor_base = np.array([[ -37.254833,  -82.50967 ,   53.254833,   98.50967 ],
                                      [ -82.50967 , -173.01933 ,   98.50967 ,  189.01933 ],
                                      [-173.01933 , -354.03867 ,  189.01933 ,  370.03867 ],
@@ -22,6 +24,7 @@ class FasterRCNNTrainer(nn.Module):
                                      [-354.03867 , -173.01933 ,  370.03867 ,  189.01933 ]],
                                      dtype=np.float32)
         self.feat_stride = 16
+        self.spatial_pooling = torch.nn.AdaptiveMaxPool2d((7, 7))
 
     def forward(self, x, scale):
         #extract feature network, reuse of vgg16.
@@ -48,15 +51,25 @@ class FasterRCNNTrainer(nn.Module):
         rpn_scores = rpn_scores.permute(0, 2, 3, 1).contiguous()
         rpn_fg_scores = rpn_scores.view(1, h, w, n_anchor, 2)[:, :, :, :, 1].contiguous().view(1, -1)
         rois = self.proposal_layer(
-                rpn_locs[0].cpu().data.numpy(),
-                rpn_fg_scores[0].cpu().data.numpy(),
+                rpn_locs[0].cpu().numpy(),
+                rpn_fg_scores[0].cpu().numpy(),
                 anchor, img_size, scale=scale)
+        #ndarray  (300, 4)
 
-        rois_indices = np.zeros(len(rois, ), dtype=np.int32)
-        roi_cls_locs, roi_scores = self.head(x, rois, rois_indices)
-
-        #torch.nn.AdaptiveMaxPool2d
+        pool = torch.Tensor().cuda()
+        for i in range(rois.shape[0]):
+            tmp = (rois[i]/self.feat_stride).astype("int")
+            inp = layer1[:, :, tmp[0]:tmp[2], tmp[1]:tmp[3]]
+            outp = self.spatial_pooling(inp)
+            pool = torch.cat((pool, outp))
+        #we suppose got a 128*512*7*7 tensor
+        pool = pool.view(pool.size(0), -1)
         
+        fc7 = self.faster_rcnn.head.classifier(pool)
+        roi_cls_locs = self.faster_rcnn.head.cls_loc(fc7)
+        roi_scores = self.faster_rcnn.head.score(fc7)
+        set_trace()
+
         return roi_cls_locs, roi_scores, rois
 
     def proposal_layer(self, loc, score, anchor, img_size, scale):
