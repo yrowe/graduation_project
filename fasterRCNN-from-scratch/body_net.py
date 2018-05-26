@@ -25,6 +25,13 @@ class FasterRCNNTrainer(nn.Module):
                                      dtype=np.float32)
         self.feat_stride = 16
         self.spatial_pooling = torch.nn.AdaptiveMaxPool2d((7, 7))
+        self.loc_normalize_mean = loc_normalize_mean
+        self.loc_normalize_std = loc_normalize_std
+
+        self.nms_thresh = 0.3
+        self.score_thresh = 0.05
+
+        self.n_class = 21
 
     def forward(self, x, scale):
         #extract feature network, reuse of vgg16.
@@ -68,7 +75,7 @@ class FasterRCNNTrainer(nn.Module):
         fc7 = self.faster_rcnn.head.classifier(pool)
         roi_cls_locs = self.faster_rcnn.head.cls_loc(fc7)
         roi_scores = self.faster_rcnn.head.score(fc7)
-        set_trace()
+        #set_trace()
 
         return roi_cls_locs, roi_scores, rois
 
@@ -97,6 +104,56 @@ class FasterRCNNTrainer(nn.Module):
 
         return roi
 
+
+    def predict(self, img, sizes=None):
+        self.eval()
+        #img should be 3-dim np array
+        #then we change it to 4-dim tensor
+
+        bboxes = list()
+        labels = list()
+        scores = list()
+
+        img = torch.from_numpy(img).cuda().float().unsqueeze(0)
+        scale = img.shape[3]/size[1]
+
+        roi_cls_locs, roi_scores, rois = self(img, scale=scale)
+        roi = torch.from_numpy(rois).cuda()/scale
+
+        mean = torch.Tensor(self.loc_normalize_mean).cuda().repeat(self.n_class)[None]
+        std = torch.Tensor(self.loc_normalize_std).cuda().repeat(self.n_class)[None]
+
+        roi_cls_loc = (roi_cls_loc*std + mean)
+        roi_cls_loc = roi_cls_loc.view(-1, self.n_class, 4)
+
+        roi = roi.view(-1, 1, 4).expand_as(roi_cls_loc)
+        cls_bbox = loc2bbox(roi.cpu.numpy().reshape((-1, 4)), roi_cls_loc.cpu().numpy().reshape((-1, 4)))
+        cls_bbox = torch.from_numpy(cls_bbox).cuda().view(-1, self.n_class*4)
+
+        cls_bbox[:, 0::2] = (cls_bbox[:, 0::2]).clamp(min=0, max=size[0])
+        cls_bbox[:, 1::2] = (cls_bbox[:, 1::2]).clamp(min=0, max=size[1])
+
+        prob = (F.softmax(roi_score, dim=1)).cpu().numpy()
+
+        raw_cls_bbox = cls_bbox.cpu().numpy()
+        raw_prob = prob.cpu().numpy()
+
+        bbox, label, score = self._suppress(raw_cls_bbox, raw_prob)
+
+    def _suppress(self, raw_cls_bbox, raw_prob):
+        bbox = list()
+        label = list()
+        score = list()
+
+        for l in range(1, self.n_class):
+            cls_bbox_l = raw_cls_bbox.reshape((-1, self.n_class, 4))[:, l, :]
+            prob_l = raw_prob[:, l]
+            mask = prob_l > self.score_thresh
+            cls_bbox_l = cls_bbox_l[mask]
+            prob_l = prob_l[mask]
+            keep = non_maximum_suppress(cls_bbox_l, self.nms_thresh, )
+
+
 def bbox_iou(box1, box2):
     b1_x1, b1_y1, b1_x2, b1_y2 = box1[:,0], box1[:,1], box1[:,2], box1[:,3]
     b2_x1, b2_y1, b2_x2, b2_y2 = box2[:,0], box2[:,1], box2[:,2], box2[:,3]
@@ -118,10 +175,12 @@ def bbox_iou(box1, box2):
 
     return iou
 
-def non_maximum_suppress(roi, nms_thresh):
+def non_maximum_suppress(roi, nms_thresh, score=None):
     roi_size = roi.shape[0]
+    if score is not None:
+        order = score.argsort()[::-1].astype(np.int32)
+        roi = roi[order, :]
     roi = torch.from_numpy(roi)
-
     discard_index = []
     for i in range(roi_size):
         if i in discard_index:

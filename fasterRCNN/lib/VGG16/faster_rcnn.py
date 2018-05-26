@@ -151,7 +151,7 @@ class FasterRCNN(nn.Module):
 
 			 #convert predictions to bounding boxes in image coordinates.
 			 #Bounding boxes are scaled to the scale of the input images.
-
+			#self.n_class = ?
 			mean = torch.Tensor(self.loc_normalize_mean).cuda().repeat(self.n_class)[None]
 			std = torch.Tensor(self.loc_normalize_std).cuda().repeat(self.n_class)[None]
 
