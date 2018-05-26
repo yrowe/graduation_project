@@ -16,6 +16,8 @@ matplotlib.use('Agg')
 from matplotlib import pyplot as plot
 from IPython.core.debugger import Tracer
 
+from ipdb import set_trace
+
 # from data.voc_dataset import VOC_BBOX_LABEL_NAMES
 
 
@@ -140,6 +142,8 @@ def predict(imgs, model, specific_label=['person'], sizes=None):
     list_name = list(VOC_BBOX_LABEL_NAMES)
     model.nms_thresh = 0.3
     model.score_thresh = 0.7
+
+    set_trace()
     
     prepared_imgs = list()
     sizes = list()
@@ -154,9 +158,16 @@ def predict(imgs, model, specific_label=['person'], sizes=None):
     scores = list()
 
     for img, size in zip(prepared_imgs, sizes):
+        #img.shape = (3,600,800); size: torch.Size([480, 640])
         img = torch.autograd.Variable(at.totensor(img).float()[None], volatile=True)
+        #img.shape : (1, 3, 600, 800)
         scale = img.shape[3]/size[1]
+        #1.25
         roi_cls_loc, roi_scores, rois, _ = model.forward(img, scale=scale)  #forward method
+        #roi_cls_loc.shape [300, 84], variable
+        #roi_scores.shape [300, 21], Variable
+        #rois ndarray [300, 4]
+
         roi_score = roi_scores.data
         roi_cls_loc = roi_cls_loc.data
         roi = at.totensor(rois)/scale

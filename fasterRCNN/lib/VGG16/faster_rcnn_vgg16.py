@@ -101,7 +101,7 @@ class VGG16RoIHead(nn.Module):
 		pool = self.roi(x, indices_and_rois)   #128*512*7*7    after RoI pooling layer
 		#same as input, when testing.  300*512*7*7
 		pool = pool.view(pool.size(0), -1)     #128 * 25088  inorder to share weight.
-		set_trace()
+		#set_trace()
 		
 		fc7 = self.classifier(pool)
 		roi_cls_locs = self.cls_loc(fc7)

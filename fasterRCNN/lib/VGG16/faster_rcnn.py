@@ -10,6 +10,8 @@ from tools import array_tool as at
 from lib.NMS.non_maximum_suppression import non_maximum_suppression
 from tools.dataset import preprocess 
 
+from ipdb import set_trace
+
 
 
 class FasterRCNN(nn.Module):
@@ -135,6 +137,8 @@ class FasterRCNN(nn.Module):
 				sizes.append(size)
 		else:
 			prepared_imgs = imgs
+
+		set_trace()
 
 
 		bboxes = list()
