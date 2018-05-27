@@ -90,7 +90,7 @@ class VGG16RoIHead(nn.Module):
 		#in case roi_indices and rois are ndarray.
 		roi_indices = at.totensor(roi_indices).float()
 		rois = at.totensor(rois).float()
-        set_trace()
+		set_trace()
 
 		indices_and_rois = torch.cat([roi_indices[:, None],rois],dim=1)
 		#(B, ymin, xmin, ymax, xmax) -> (B, xmin, ymin, xmax, ymax)
@@ -98,7 +98,7 @@ class VGG16RoIHead(nn.Module):
 		# xy_indices_and_rois shape [300, 5]
 		indices_and_rois = torch.autograd.Variable(xy_indices_and_rois.contiguous())
 		#indices_and_rois shape [300, 5]
-        #? x , ? rois
+		#? x , ? rois
 
 		pool = self.roi(x, indices_and_rois)   #128*512*7*7    after RoI pooling layer
 		#same as input, when testing.  300*512*7*7
