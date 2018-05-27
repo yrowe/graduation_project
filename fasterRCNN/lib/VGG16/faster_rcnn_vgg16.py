@@ -108,6 +108,7 @@ class VGG16RoIHead(nn.Module):
 		#300 * 84
 		roi_scores = self.score(fc7)
 		#300 * 21
+		set_trace()
 
 		return roi_cls_locs, roi_scores
 

@@ -101,6 +101,7 @@ class FasterRCNN(nn.Module):
 		rpn_locs, rpn_scores, rois, roi_indices, anchor = self.rpn(h, img_size, scale)
 
 		roi_cls_locs, roi_scores = self.head(h, rois, roi_indices)
+		#set_trace()
 		return roi_cls_locs, roi_scores, rois, roi_indices
 
 
@@ -138,7 +139,7 @@ class FasterRCNN(nn.Module):
 		else:
 			prepared_imgs = imgs
 
-		set_trace()
+		#set_trace()
 
 
 		bboxes = list()

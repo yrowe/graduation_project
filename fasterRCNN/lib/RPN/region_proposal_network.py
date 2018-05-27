@@ -109,7 +109,7 @@ class RegionProposalNetwork(nn.Module):
 		'''
 		anchor.shape = (16650, 4)
 		'''
-		set_trace()
+		#set_trace()
 		n_anchor = self.anchor_base.shape[0]    # need to confirm!
 
 		#n_anchor = 9
@@ -141,11 +141,6 @@ class RegionProposalNetwork(nn.Module):
 		#rois_indices.shape = (2000,0)
 
 		return rpn_locs, rpn_scores, rois, rois_indices, anchor
-		
-
-
-
-
 
 def normal_init(layer, mean, stddev):
 	'''
