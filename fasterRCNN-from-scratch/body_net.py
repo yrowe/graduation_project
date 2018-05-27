@@ -72,12 +72,12 @@ class FasterRCNNTrainer(nn.Module):
         pool = torch.Tensor().cuda()
         for i in range(rois.shape[0]):
             tmp = (rois[i]/self.feat_stride).astype("int")
-            inp = layer1[:, :, tmp[0]:tmp[2], tmp[1]:tmp[3]]
+            inp = x[:, :, tmp[0]:tmp[2], tmp[1]:tmp[3]]
             outp = self.spatial_pooling(inp)
             pool = torch.cat((pool, outp))
         #we suppose got a 300*512*7*7 tensor
         pool = pool.view(pool.size(0), -1)
-        
+
         fc7 = self.faster_rcnn.head.classifier(pool)
         roi_cls_locs = self.faster_rcnn.head.cls_loc(fc7)
         roi_scores = self.faster_rcnn.head.score(fc7)
@@ -161,7 +161,13 @@ def predict(img, model):
     prob = prob.cpu().numpy()
 
     bbox, label, score = model.suppress(cls_bbox, prob)
-    return bbox, label
+    bbox1 = list()
+
+    for k, i in enumerate(label):
+        if i == 14:
+            bbox1.append(bbox[k])
+
+    return bbox1
 
 def bbox_iou(box1, box2):
     b1_x1, b1_y1, b1_x2, b1_y2 = box1[:,0], box1[:,1], box1[:,2], box1[:,3]
@@ -330,10 +336,9 @@ print("successfully load faster rcnn.")
 net.eval()
 
 img = cv2.imread("1.jpg")
-bbox, label = predict(img, net)
+bbox = predict(img, net)
 
 print(bbox)
-print(label)
 #set_trace()
 
 '''
