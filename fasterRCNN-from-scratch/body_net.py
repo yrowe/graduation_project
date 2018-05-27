@@ -6,6 +6,7 @@ import numpy as np
 import cv2
 from torch.nn import functional as F
 import time
+import pandas as pd
 
 
 class FasterRCNNTrainer(nn.Module):
@@ -64,9 +65,9 @@ class FasterRCNNTrainer(nn.Module):
                 rpn_fg_scores[0].cpu().numpy(),
                 anchor, img_size, scale=scale)
         #ndarray  (300, 4)
-        set_trace()
+        #set_trace()
 
-        rois = rois[:, [1, 0, 3, 2]]
+        #rois = rois[:, [1, 0, 3, 2]]
 
         pool = torch.Tensor().cuda()
         for i in range(rois.shape[0]):
@@ -74,13 +75,21 @@ class FasterRCNNTrainer(nn.Module):
             inp = layer1[:, :, tmp[0]:tmp[2], tmp[1]:tmp[3]]
             outp = self.spatial_pooling(inp)
             pool = torch.cat((pool, outp))
-        #we suppose got a 128*512*7*7 tensor
+        #we suppose got a 300*512*7*7 tensor
         pool = pool.view(pool.size(0), -1)
         
         fc7 = self.faster_rcnn.head.classifier(pool)
         roi_cls_locs = self.faster_rcnn.head.cls_loc(fc7)
         roi_scores = self.faster_rcnn.head.score(fc7)
-        #set_trace()
+
+        df = pd.DataFrame(pool.cpu().numpy())
+        df.to_csv("pool.csv")
+
+        df = pd.DataFrame(roi_cls_locs.cpu().numpy())
+        df.to_csv("roi_cls_locs.csv")
+
+        df = pd.DataFrame(roi_scores.cpu().numpy())
+        df.to_csv("roi_scores.csv")
 
         return roi_cls_locs, roi_scores, rois
 
@@ -331,7 +340,10 @@ net.eval()
 
 img = cv2.imread("1.jpg")
 bbox, label = predict(img, net)
-set_trace()
+
+print(bbox)
+print(label)
+#set_trace()
 
 '''
 img, scale = preprocess(img)
