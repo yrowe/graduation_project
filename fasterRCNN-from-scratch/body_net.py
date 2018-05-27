@@ -43,12 +43,20 @@ class FasterRCNNTrainer(nn.Module):
         h = x.shape[2]
         w = x.shape[3]
 
+        df = pd.DataFrame(x.cpu().numpy()[0, 0, :, :])
+        df.to_csv("featureMap.csv")
+
         anchor = generate_anchors(self.anchor_base, 
                    self.feat_stride, h, w)
 
         n_anchor = self.anchor_base.shape[0]    
         #one more 3*3 conv to extractor features.
         layer1 = F.relu(self.faster_rcnn.rpn.conv1(x))
+        
+        df = pd.DataFrame(layer1.cpu().numpy()[0, 0, :, :])
+        df.to_csv("layer1.csv")
+
+
         #now we need to forward into 2 paths.
         #location path:
         rpn_locs = self.faster_rcnn.rpn.loc(layer1)
@@ -161,20 +169,12 @@ def predict(img, model):
     prob = prob.cpu().numpy()
 
     bbox, label, score = model.suppress(cls_bbox, prob)
-    #bbox = bbox[:, [1, 0, 3, 2]]
+    bbox = bbox[:, [1, 0, 3, 2]]
     bbox1 = list()
-
-    #[[340, 91, 455, 335], [363, 82, 429, 314], [36, 100, 154, 337]]
-
-    #[425.28738 , 114.584045, 569.01074 , 419.28204 ]
-
     for k, i in enumerate(label):
         if i == 14:
-            bb = [int(b/scale) for b in bbox[k]]
+            bb = [int(b) for b in bbox[k]]
             bbox1.append(bb)
-
-    print(bbox1)
-
     return bbox1
 
 def bbox_iou(box1, box2):
@@ -333,7 +333,7 @@ def preprocess(img, min_size=600, max_size=1000):
 
 def print_rectangle(img, locs):
     for loc in locs:
-        cv2.rectangle(img, (loc[0], loc[2]), (loc[1], loc[3]), (255, 0, 0), 3)
+        cv2.rectangle(img, (loc[0], loc[1]), (loc[2], loc[3]), (255, 0, 0), 2)
 
     return img 
 
@@ -356,21 +356,4 @@ bbox = predict(img, net)
 
 img = print_rectangle(img, bbox)
 
-cv2.imshow("detection", img)
-cv2.waitKey(0)
-
-#print(bbox)
-#set_trace()
-
-'''
-img, scale = preprocess(img)
-input_x = torch.from_numpy(img)
-input_x.unsqueeze_(0)
-#set_trace()
-input_x = input_x.cuda()
-
-with torch.no_grad():
-    roi_cls_locs, roi_scores, rois = net(input_x, scale)
-
-set_trace()
-'''
+cv2.imwrite("ans.jpg", img)
