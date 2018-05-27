@@ -161,11 +161,19 @@ def predict(img, model):
     prob = prob.cpu().numpy()
 
     bbox, label, score = model.suppress(cls_bbox, prob)
+    #bbox = bbox[:, [1, 0, 3, 2]]
     bbox1 = list()
+
+    #[[340, 91, 455, 335], [363, 82, 429, 314], [36, 100, 154, 337]]
+
+    #[425.28738 , 114.584045, 569.01074 , 419.28204 ]
 
     for k, i in enumerate(label):
         if i == 14:
-            bbox1.append(bbox[k])
+            bb = [int(b/scale) for b in bbox[k]]
+            bbox1.append(bb)
+
+    print(bbox1)
 
     return bbox1
 
@@ -322,6 +330,14 @@ def preprocess(img, min_size=600, max_size=1000):
     img = np.transpose(img, (2,0,1))
     return img, scale
 
+
+def print_rectangle(img, locs):
+    for loc in locs:
+        cv2.rectangle(img, (loc[0], loc[2]), (loc[1], loc[3]), (255, 0, 0), 3)
+
+    return img 
+
+
 extractor, classifier = vgg16_decompose()
 rpn = RegionProposalNetwork()
 head = VGG16RoIHead(classifier)
@@ -338,7 +354,12 @@ net.eval()
 img = cv2.imread("1.jpg")
 bbox = predict(img, net)
 
-print(bbox)
+img = print_rectangle(img, bbox)
+
+cv2.imshow("detection", img)
+cv2.waitKey(0)
+
+#print(bbox)
 #set_trace()
 
 '''

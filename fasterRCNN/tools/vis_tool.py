@@ -211,6 +211,7 @@ def predict(imgs, model, specific_label=['person'], sizes=None):
         bboxes.append(bbox1)
         labels.append(label1)
         scores.append(score1)
+        print(bboxes)
     return bboxes, labels, scores  
 
 def fig2data(fig):
