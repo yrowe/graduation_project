@@ -82,15 +82,6 @@ class FasterRCNNTrainer(nn.Module):
         roi_cls_locs = self.faster_rcnn.head.cls_loc(fc7)
         roi_scores = self.faster_rcnn.head.score(fc7)
 
-        df = pd.DataFrame(pool.cpu().numpy())
-        df.to_csv("pool.csv")
-
-        df = pd.DataFrame(roi_cls_locs.cpu().numpy())
-        df.to_csv("roi_cls_locs.csv")
-
-        df = pd.DataFrame(roi_scores.cpu().numpy())
-        df.to_csv("roi_scores.csv")
-
         return roi_cls_locs, roi_scores, rois
 
     def proposal_layer(self, loc, score, anchor, img_size, scale):
