@@ -76,10 +76,6 @@ class FasterRCNNTrainer(nn.Module):
 
         df = pd.DataFrame(rois)
         df.to_csv("rois.csv")
-        #ndarray  (300, 4)
-        #set_trace()
-
-        #rois = rois[:, [1, 0, 3, 2]]
 
         pool = torch.Tensor().cuda()
         for i in range(rois.shape[0]):
@@ -89,8 +85,11 @@ class FasterRCNNTrainer(nn.Module):
             pool = torch.cat((pool, outp))
         #we suppose got a 300*512*7*7 tensor
         pool = pool.view(pool.size(0), -1)
+        df = pd.DataFrame(pool.cpu().numpy()[0])
+        df.to_csv("pool.csv")
 
         fc7 = self.faster_rcnn.head.classifier(pool)
+        
         roi_cls_locs = self.faster_rcnn.head.cls_loc(fc7)
         roi_scores = self.faster_rcnn.head.score(fc7)
 
