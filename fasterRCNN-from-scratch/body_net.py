@@ -80,7 +80,7 @@ class FasterRCNNTrainer(nn.Module):
         pool = torch.Tensor().cuda()
         for i in range(rois.shape[0]):
             tmp = (rois[i]/self.feat_stride).astype("int")
-            inp = x[:, :, tmp[0]:tmp[2], tmp[1]:tmp[3]]
+            inp = x[:, :, tmp[0]:(tmp[2]+1), tmp[1]:(tmp[3]+1)]
             outp = self.spatial_pooling(inp)
             pool = torch.cat((pool, outp))
         #we suppose got a 300*512*7*7 tensor
@@ -126,12 +126,20 @@ class FasterRCNNTrainer(nn.Module):
         score = list()
 
         for l in range(1, self.n_class):
+            if l != 15:
+                continue
             cls_bbox_l = raw_cls_bbox.reshape((-1, self.n_class, 4))[:, l, :]
             prob_l = raw_prob[:, l]
             mask = prob_l > self.score_thresh
             cls_bbox_l = cls_bbox_l[mask]
             prob_l = prob_l[mask]
             keep = non_maximum_suppress(cls_bbox_l, self.nms_thresh, prob_l)
+
+            order = prob_l.argsort()[::-1].astype(np.int32)
+            prob_l = prob_l[order]
+            cls_bbox_l = cls_bbox_l[order]
+            #print(cls_bbox_l.shape)
+            #print(prob_l.shape)
 
             bbox.append(cls_bbox_l[keep])
             label.append((l-1)*np.ones((len(keep), )))
@@ -140,6 +148,8 @@ class FasterRCNNTrainer(nn.Module):
         bbox = np.concatenate(bbox, axis=0).astype(np.float32)
         label = np.concatenate(label, axis=0).astype(np.int32)
         score = np.concatenate(score, axis=0).astype(np.float32)
+
+        #print(bbox)
 
         return bbox, label, score
 
@@ -178,6 +188,8 @@ def predict(img, model):
         if i == 14:
             bb = [int(b) for b in bbox[k]]
             bbox1.append(bb)
+
+    
     return bbox1
 
 def bbox_iou(box1, box2):
@@ -191,17 +203,18 @@ def bbox_iou(box1, box2):
     inter_rect_y2 =  torch.min(b1_y2, b2_y2)
     
     #Intersection area
-    inter_area = torch.clamp(inter_rect_x2 - inter_rect_x1, min=0) * torch.clamp(inter_rect_y2 - inter_rect_y1, min=0)
+    inter_area = torch.clamp(inter_rect_x2 - inter_rect_x1 + 1, min=0) * torch.clamp(inter_rect_y2 - inter_rect_y1 + 1, min=0)
 
     #Union Area
-    b1_area = (b1_x2 - b1_x1)*(b1_y2 - b1_y1)
-    b2_area = (b2_x2 - b2_x1)*(b2_y2 - b2_y1)
+    b1_area = (b1_x2 - b1_x1 + 1)*(b1_y2 - b1_y1 + 1)
+    b2_area = (b2_x2 - b2_x1 + 1)*(b2_y2 - b2_y1 + 1)
     
     iou = inter_area / (b1_area + b2_area - inter_area)
 
     return iou
 
 def non_maximum_suppress(roi, nms_thresh, score=None):
+    #order 打乱了顺序
     roi_size = roi.shape[0]
     if score is not None:
         order = score.argsort()[::-1].astype(np.int32)
@@ -218,12 +231,10 @@ def non_maximum_suppress(roi, nms_thresh, score=None):
         except IndexError:
             break
 
-        #set_trace()
-
         tmp_index = np.where(ious > nms_thresh)[0]
         for k in tmp_index:
             discard_index.append(k+i+1)
-    
+
     all_index = range(roi_size)
     keep = list(set(all_index).difference(set(discard_index)))
     #set_trace()

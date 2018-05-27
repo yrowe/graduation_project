@@ -193,6 +193,7 @@ def write_results(prediction, confidence, num_classes, nms_conf = 0.4):
                 #Get the IOUs of all boxes that come after the one we are looking at 
                 #in the loop
                 try:
+                    print(image_pred_class[i].unsqueeze(0).shape, image_pred_class[i+1:].shape)
                     ious = bbox_iou(image_pred_class[i].unsqueeze(0), image_pred_class[i+1:])
                 except ValueError:
                     break
