@@ -7,6 +7,7 @@ import cv2
 from torch.nn import functional as F
 import time
 import pandas as pd
+from skimage import transform as sktsf
 
 
 class FasterRCNNTrainer(nn.Module):
@@ -43,24 +44,21 @@ class FasterRCNNTrainer(nn.Module):
         h = x.shape[2]
         w = x.shape[3]
 
-        df = pd.DataFrame(x.cpu().numpy()[0, 0, :, :])
-        df.to_csv("featureMap.csv")
-
         anchor = generate_anchors(self.anchor_base, 
                    self.feat_stride, h, w)
 
         n_anchor = self.anchor_base.shape[0]    
         #one more 3*3 conv to extractor features.
         layer1 = F.relu(self.faster_rcnn.rpn.conv1(x))
-        
-        df = pd.DataFrame(layer1.cpu().numpy()[0, 0, :, :])
+        df = pd.DataFrame(layer1.cpu().numpy()[0,0,:,:])
         df.to_csv("layer1.csv")
-
-
         #now we need to forward into 2 paths.
         #location path:
         rpn_locs = self.faster_rcnn.rpn.loc(layer1)
         rpn_locs = rpn_locs.permute(0, 2, 3, 1).contiguous().view(1, -1, 4)
+
+        df = pd.DataFrame(rpn_locs.cpu().numpy()[0, :, :])
+        df.to_csv("rpn_locs.csv")
         
         #score path:
         rpn_scores = self.faster_rcnn.rpn.score(layer1)
@@ -68,10 +66,16 @@ class FasterRCNNTrainer(nn.Module):
         rpn_fg_scores = rpn_scores.view(1, h, w, n_anchor, 2)[:, :, :, :, 1].contiguous().view(1, -1)
         rpn_scores = rpn_scores.view(1, -1, 2)
 
+        df = pd.DataFrame(rpn_scores.cpu().numpy()[0, :, :])
+        df.to_csv("rpn_scores.csv")
+
         rois = self.proposal_layer(
                 rpn_locs[0].cpu().numpy(),
                 rpn_fg_scores[0].cpu().numpy(),
                 anchor, img_size, scale=scale)
+
+        df = pd.DataFrame(rois)
+        df.to_csv("rois.csv")
         #ndarray  (300, 4)
         #set_trace()
 
@@ -188,11 +192,11 @@ def bbox_iou(box1, box2):
     inter_rect_y2 =  torch.min(b1_y2, b2_y2)
     
     #Intersection area
-    inter_area = torch.clamp(inter_rect_x2 - inter_rect_x1 + 1, min=0) * torch.clamp(inter_rect_y2 - inter_rect_y1 + 1, min=0)
+    inter_area = torch.clamp(inter_rect_x2 - inter_rect_x1, min=0) * torch.clamp(inter_rect_y2 - inter_rect_y1, min=0)
 
     #Union Area
-    b1_area = (b1_x2 - b1_x1 + 1)*(b1_y2 - b1_y1 + 1)
-    b2_area = (b2_x2 - b2_x1 + 1)*(b2_y2 - b2_y1 + 1)
+    b1_area = (b1_x2 - b1_x1)*(b1_y2 - b1_y1)
+    b2_area = (b2_x2 - b2_x1)*(b2_y2 - b2_y1)
     
     iou = inter_area / (b1_area + b2_area - inter_area)
 
@@ -225,6 +229,7 @@ def non_maximum_suppress(roi, nms_thresh, score=None):
     keep = list(set(all_index).difference(set(discard_index)))
     #set_trace()
     keep.sort()
+
     return keep
 
 def loc2bbox(src_bbox, loc):
@@ -317,17 +322,17 @@ def preprocess(img, min_size=600, max_size=1000):
     scale1 = min_size/min(H, W)
     scale2 = max_size/max(H, W)
     scale = min(scale1, scale2)
-    
-    #note that cv2.resize inputs should be (W, H)!
-    #set_trace()
-    img = cv2.resize(img, (int(scale*W), int(scale*H)))
-    
-    #since we reuse VGG16 which is trained in ImageNet dataset. We need to normalize it in order to
-    #get the total average value equals 0.
-    mean = np.array([122.7717, 115.9465, 102.9801]).reshape(1, 1, 3)
-    img = (img - mean).astype(np.float32, copy=True)
-    #return shape should be [C, H ,W]
     img = np.transpose(img, (2,0,1))
+    
+    img = img/255.
+    img = sktsf.resize(img, (C, H*scale, W*scale), mode='reflect')
+
+    #return shape should be [C, H ,W]
+    #set_trace()
+    #img = np.transpose(img, (2,0,1))
+    img = img*255
+    mean = np.array([122.7717, 115.9465, 102.9801]).reshape(3, 1, 1)
+    img = (img-mean).astype(np.float32, copy=True)
     return img, scale
 
 
@@ -355,5 +360,6 @@ img = cv2.imread("1.jpg")
 bbox = predict(img, net)
 
 img = print_rectangle(img, bbox)
+
 
 cv2.imwrite("ans.jpg", img)
