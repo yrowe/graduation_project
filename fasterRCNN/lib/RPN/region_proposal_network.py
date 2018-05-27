@@ -102,15 +102,16 @@ class RegionProposalNetwork(nn.Module):
         shape = (9, 4)
 
 		'''
+
 		anchor = _generate_anchors_all(
 				np.array(self.anchor_base),
 				self.feat_stride, hh, ww)
-
 		'''
 		anchor.shape = (16650, 4)
 		'''
-
+		set_trace()
 		n_anchor = self.anchor_base.shape[0]    # need to confirm!
+
 		#n_anchor = 9
 
 		layer1 = F.relu(self.conv1(base_feat))

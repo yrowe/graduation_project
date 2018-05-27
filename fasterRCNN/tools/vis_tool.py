@@ -143,7 +143,7 @@ def predict(imgs, model, specific_label=['person'], sizes=None):
     model.nms_thresh = 0.3
     model.score_thresh = 0.7
 
-    set_trace()
+    #set_trace()
     
     prepared_imgs = list()
     sizes = list()
