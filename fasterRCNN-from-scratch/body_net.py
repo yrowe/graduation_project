@@ -29,10 +29,8 @@ class FasterRCNNTrainer(nn.Module):
         self.spatial_pooling = torch.nn.AdaptiveMaxPool2d((7, 7))
         self.loc_normalize_mean = (0., 0., 0., 0.)
         self.loc_normalize_std = (0.1, 0.1, 0.2, 0.2)
-
         self.nms_thresh = 0.3
         self.score_thresh = 0.7
-
         self.n_class = 21
 
     def forward(self, x, scale):
@@ -50,15 +48,10 @@ class FasterRCNNTrainer(nn.Module):
         n_anchor = self.anchor_base.shape[0]    
         #one more 3*3 conv to extractor features.
         layer1 = F.relu(self.faster_rcnn.rpn.conv1(x))
-        df = pd.DataFrame(layer1.cpu().numpy()[0,0,:,:])
-        df.to_csv("layer1.csv")
         #now we need to forward into 2 paths.
         #location path:
         rpn_locs = self.faster_rcnn.rpn.loc(layer1)
         rpn_locs = rpn_locs.permute(0, 2, 3, 1).contiguous().view(1, -1, 4)
-
-        df = pd.DataFrame(rpn_locs.cpu().numpy()[0, :, :])
-        df.to_csv("rpn_locs.csv")
         
         #score path:
         rpn_scores = self.faster_rcnn.rpn.score(layer1)
@@ -66,16 +59,10 @@ class FasterRCNNTrainer(nn.Module):
         rpn_fg_scores = rpn_scores.view(1, h, w, n_anchor, 2)[:, :, :, :, 1].contiguous().view(1, -1)
         rpn_scores = rpn_scores.view(1, -1, 2)
 
-        df = pd.DataFrame(rpn_scores.cpu().numpy()[0, :, :])
-        df.to_csv("rpn_scores.csv")
-
         rois = self.proposal_layer(
                 rpn_locs[0].cpu().numpy(),
                 rpn_fg_scores[0].cpu().numpy(),
                 anchor, img_size, scale=scale)
-
-        df = pd.DataFrame(rois)
-        df.to_csv("rois.csv")
 
         pool = torch.Tensor().cuda()
         for i in range(rois.shape[0]):
@@ -85,8 +72,6 @@ class FasterRCNNTrainer(nn.Module):
             pool = torch.cat((pool, outp))
         #we suppose got a 300*512*7*7 tensor
         pool = pool.view(pool.size(0), -1)
-        df = pd.DataFrame(pool.cpu().numpy()[0])
-        df.to_csv("pool.csv")
 
         fc7 = self.faster_rcnn.head.classifier(pool)
         
@@ -127,6 +112,7 @@ class FasterRCNNTrainer(nn.Module):
 
         for l in range(1, self.n_class):
             if l != 15:
+                #if it were not for the person item, just continue. class 0 refers to background.
                 continue
             cls_bbox_l = raw_cls_bbox.reshape((-1, self.n_class, 4))[:, l, :]
             prob_l = raw_prob[:, l]
@@ -138,8 +124,6 @@ class FasterRCNNTrainer(nn.Module):
             order = prob_l.argsort()[::-1].astype(np.int32)
             prob_l = prob_l[order]
             cls_bbox_l = cls_bbox_l[order]
-            #print(cls_bbox_l.shape)
-            #print(prob_l.shape)
 
             bbox.append(cls_bbox_l[keep])
             label.append((l-1)*np.ones((len(keep), )))
@@ -149,48 +133,67 @@ class FasterRCNNTrainer(nn.Module):
         label = np.concatenate(label, axis=0).astype(np.int32)
         score = np.concatenate(score, axis=0).astype(np.float32)
 
-        #print(bbox)
-
         return bbox, label, score
 
-def predict(img, model):
-    size = img.shape[0:2]
-    img, scale = preprocess(img)
-    img = torch.from_numpy(img).cuda().float().unsqueeze(0)
-    with torch.no_grad():
-        roi_cls_loc, roi_scores, roi = model(img, scale=scale)
+    def get_all_locs(self, img):
+        size = img.shape[0:2]
+        img, scale = preprocess(img)
+        img = torch.from_numpy(img).cuda().float().unsqueeze(0)
+        with torch.no_grad():
+            roi_cls_loc, roi_scores, roi = self(img, scale=scale)
 
-    roi = torch.from_numpy(roi).cuda()/scale
+        roi = torch.from_numpy(roi).cuda()/scale
+        mean = torch.Tensor(self.loc_normalize_mean).cuda().repeat(self.n_class)[None]
+        std = torch.Tensor(self.loc_normalize_std).cuda().repeat(self.n_class)[None]
 
-    mean = torch.Tensor(model.loc_normalize_mean).cuda().repeat(model.n_class)[None]
-    std = torch.Tensor(model.loc_normalize_std).cuda().repeat(model.n_class)[None]
+        roi_cls_loc = (roi_cls_loc*std + mean)
+        roi_cls_loc = roi_cls_loc.view(-1, self.n_class, 4)
 
-    roi_cls_loc = (roi_cls_loc*std + mean)
-    roi_cls_loc = roi_cls_loc.view(-1, model.n_class, 4)
+        roi = roi.view(-1, 1, 4).expand_as(roi_cls_loc)
+        cls_bbox = loc2bbox(roi.cpu().numpy().reshape((-1, 4)), roi_cls_loc.cpu().numpy().reshape((-1, 4)))
+        cls_bbox = torch.from_numpy(cls_bbox).cuda()
+        cls_bbox = cls_bbox.view(-1, self.n_class*4)
 
-    roi = roi.view(-1, 1, 4).expand_as(roi_cls_loc)
-    cls_bbox = loc2bbox(roi.cpu().numpy().reshape((-1, 4)), roi_cls_loc.cpu().numpy().reshape((-1, 4)))
-    cls_bbox = torch.from_numpy(cls_bbox).cuda()
-    cls_bbox = cls_bbox.view(-1, model.n_class*4)
+        cls_bbox[:, 0::2] = (cls_bbox[:, 0::2]).clamp(min=0, max=size[0])
+        cls_bbox[:, 1::2] = (cls_bbox[:, 1::2]).clamp(min=0, max=size[1])
 
-    cls_bbox[:, 0::2] = (cls_bbox[:, 0::2]).clamp(min=0, max=size[0])
-    cls_bbox[:, 1::2] = (cls_bbox[:, 1::2]).clamp(min=0, max=size[1])
+        prob = F.softmax(roi_scores, dim=1)
 
-    prob = F.softmax(roi_scores, dim=1)
+        cls_bbox = cls_bbox.cpu().numpy()
+        prob = prob.cpu().numpy()
 
-    cls_bbox = cls_bbox.cpu().numpy()
-    prob = prob.cpu().numpy()
-
-    bbox, label, score = model.suppress(cls_bbox, prob)
-    bbox = bbox[:, [1, 0, 3, 2]]
-    bbox1 = list()
-    for k, i in enumerate(label):
-        if i == 14:
+        bbox, label, score = self.suppress(cls_bbox, prob)
+        bbox = bbox[:, [1, 0, 3, 2]]
+        bbox1 = list()
+        for k, i in enumerate(label):
             bb = [int(b) for b in bbox[k]]
             bbox1.append(bb)
 
-    
-    return bbox1
+        return bbox1
+
+
+class FasterRCNNVGG16(nn.Module):
+    def __init__(self, extractor, rpn, head):
+        super(FasterRCNNVGG16, self).__init__()
+        self.extractor = extractor
+        self.rpn = rpn
+        self.head = head
+
+
+class RegionProposalNetwork(nn.Module):
+    def __init__(self):
+        super(RegionProposalNetwork, self).__init__()
+        self.conv1 = nn.Conv2d(512, 512, kernel_size=(3,3), stride=(1,1),padding=(1,1))
+        self.score = nn.Conv2d(512, 18, kernel_size=(1,1), stride=(1,1))
+        self.loc = nn.Conv2d(512, 36, kernel_size=(1,1), stride=(1,1))
+
+class VGG16RoIHead(nn.Module):
+    def __init__(self, classifier):
+        super(VGG16RoIHead, self).__init__()
+        self.classifier = classifier
+        self.cls_loc = nn.Linear(in_features=4096, out_features=84, bias=True)
+        self.score = nn.Linear(in_features=4096, out_features=21, bias= True)
+
 
 def bbox_iou(box1, box2):
     b1_x1, b1_y1, b1_x2, b1_y2 = box1[:,0], box1[:,1], box1[:,2], box1[:,3]
@@ -288,29 +291,6 @@ def generate_anchors(anchor_base, feat_stride, height, width):
     return anchor
 
 
-class FasterRCNNVGG16(nn.Module):
-    def __init__(self, extractor, rpn, head):
-        super(FasterRCNNVGG16, self).__init__()
-        self.extractor = extractor
-        self.rpn = rpn
-        self.head = head
-
-
-class RegionProposalNetwork(nn.Module):
-    def __init__(self):
-        super(RegionProposalNetwork, self).__init__()
-        self.conv1 = nn.Conv2d(512, 512, kernel_size=(3,3), stride=(1,1),padding=(1,1))
-        self.score = nn.Conv2d(512, 18, kernel_size=(1,1), stride=(1,1))
-        self.loc = nn.Conv2d(512, 36, kernel_size=(1,1), stride=(1,1))
-
-class VGG16RoIHead(nn.Module):
-    def __init__(self, classifier):
-        super(VGG16RoIHead, self).__init__()
-        self.classifier = classifier
-        self.cls_loc = nn.Linear(in_features=4096, out_features=84, bias=True)
-        self.score = nn.Linear(in_features=4096, out_features=21, bias= True)
-
-
 def vgg16_decompose():
     #we don't neet parameters
     model = torchvision.models.vgg16(pretrained=False)  
@@ -349,27 +329,4 @@ def preprocess(img, min_size=600, max_size=1000):
 def print_rectangle(img, locs):
     for loc in locs:
         cv2.rectangle(img, (loc[0], loc[1]), (loc[2], loc[3]), (255, 0, 0), 2)
-
-    return img 
-
-
-extractor, classifier = vgg16_decompose()
-rpn = RegionProposalNetwork()
-head = VGG16RoIHead(classifier)
-    
-tst = FasterRCNNVGG16(extractor, rpn, head)
-net = FasterRCNNTrainer(tst).cuda()
-
-print("loading model...")
-net.load_state_dict(torch.load('fasterRCNN.pth'))
-print("successfully load faster rcnn.")
-
-net.eval()
-
-img = cv2.imread("img1.jpg")
-bbox = predict(img, net)
-
-img = print_rectangle(img, bbox)
-
-
-cv2.imwrite("ans.jpg", img)
+    return img
