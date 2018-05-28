@@ -97,8 +97,8 @@ class FasterRCNNTrainer(nn.Module):
 
     def proposal_layer(self, loc, score, anchor, img_size, scale):
         nms_thresh = 0.7
-        pre_nms = 6000
-        post_nms = 300
+        pre_nms = 2000      #12000
+        post_nms = 300       #2000
         min_size = 16
         roi = loc2bbox(anchor, loc)
 
@@ -366,7 +366,7 @@ print("successfully load faster rcnn.")
 
 net.eval()
 
-img = cv2.imread("1.jpg")
+img = cv2.imread("img1.jpg")
 bbox = predict(img, net)
 
 img = print_rectangle(img, bbox)
