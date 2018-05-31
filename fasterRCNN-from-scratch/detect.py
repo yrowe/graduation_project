@@ -14,6 +14,7 @@ net.load_state_dict(torch.load('fasterRCNN.pth'))
 print("successfully load faster rcnn.")
 
 net.eval()
+print(net)
 
 img = cv2.imread("imgs/1.jpg")
 bbox = net.get_all_locs(img)
