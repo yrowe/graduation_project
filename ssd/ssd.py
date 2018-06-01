@@ -139,6 +139,20 @@ class PriorBox(object):
         output.clamp_(max=1, min=0)
         return output
 
+class L2Norm(nn.Module):
+    def __init__(self, n_channels, scale):
+        super(L2Norm, self).__init__()
+        self.n_channels = n_channels
+        self.gamma = scale or None
+        self.eps = 1e-10
+        self.weight = nn.Parameter(torch.Tensor(self.n_channels))
+
+    def forward(self, x):
+        norm = x.pow(2).sum(dim=1, keepdim=True).sqrt()+self.eps
+        x = torch.div(x, norm)
+        out = self.weight.unsqueeze(0).unsqueeze(2).unsqueeze(3).expand_as(x) * x
+        return out
+
 def decode(loc, priors, variances):
     boxes = torch.cat((
         priors[:, :2] + loc[:, :2] * variances[0] * priors[:, 2:],
@@ -207,23 +221,8 @@ def vgg16_convert():
     vgg16.append(nn.ReLU(True))
     return vgg16
 
-class L2Norm(nn.Module):
-    def __init__(self, n_channels, scale):
-        super(L2Norm, self).__init__()
-        self.n_channels = n_channels
-        self.gamma = scale or None
-        self.eps = 1e-10
-        self.weight = nn.Parameter(torch.Tensor(self.n_channels))
-
-    def forward(self, x):
-        norm = x.pow(2).sum(dim=1, keepdim=True).sqrt()+self.eps
-        x = torch.div(x, norm)
-        out = self.weight.unsqueeze(0).unsqueeze(2).unsqueeze(3).expand_as(x) * x
-        return out
-
 def get_conv2d(inp, outp, k, s, p=0):
     return nn.Conv2d(inp, outp, kernel_size=k, stride=s, padding=p)
-
 
 def down_sample(model_list):
     extractor = nn.ModuleList()
@@ -243,7 +242,7 @@ net = ssd().cuda()
 
 print("loading model...")
 net.load_state_dict(torch.load('ssd300.pth'))
-print("successfully load faster rcnn.")
+print("successfully load ssd.")
 
 net.eval()
 
