@@ -260,3 +260,17 @@ def down_sample(model_list):
     for ll in model_list:
         extractor.append(get_conv2d(*ll))
     return extractor
+
+if __name__ == '__main__':
+    net = ssd().cuda()
+
+    print("loading model...")
+    net.load_state_dict(torch.load('ssd300.pth'))
+    print("successfully load ssd.")
+
+    net.eval()
+    img = cv2.imread('1.jpg')
+    img = preprocess(img)
+
+    y = net(img)
+    print(y)
