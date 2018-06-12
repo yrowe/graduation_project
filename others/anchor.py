@@ -1,7 +1,9 @@
 import cv2
 import numpy as np 
 
+#plot diagram of anchor box for my graduation project paper.
 img = np.full((724, 724, 3), 255, dtype=np.uint8)
+#same as Faster R-CNN provided.
 loc = np.array([[316, 271, 407, 452],
        [271, 181, 452, 543],
        [181,   0, 543, 724],

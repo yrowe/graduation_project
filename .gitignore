@@ -4,3 +4,4 @@ checkpoints/
 *.avi
 *.pkl
 *.pth
+*.mp4
