@@ -20,8 +20,7 @@ class Darknet(nn.Module):
 
     def forward(self, x, CUDA):
         modules = self.blocks[1:]
-        outputs = {}   #We cache the outputs for the route layer
-        
+        outputs = {}
         write = 0
 
         for i, module in enumerate(modules):        
@@ -31,7 +30,6 @@ class Darknet(nn.Module):
                 x = self.module_list[i](x)
     
             elif module_type == "route":
-                #set_trace()
                 layers = module["layers"]
                 layers = layers.split(',')
                 layers = [int(a) for a in layers]
@@ -49,30 +47,22 @@ class Darknet(nn.Module):
                     map1 = outputs[i + layers[0]]
                     map2 = outputs[i + layers[1]]
                     x = torch.cat((map1, map2), 1)
-                
-    
             elif  module_type == "shortcut":
                 from_ = int(module["from"])
                 x = outputs[i-1] + outputs[i+from_]
     
             elif module_type == 'yolo':        
                 anchors = self.module_list[i][0].anchors
-                #Get the input dimensions
                 inp_dim = int (self.net_info["height"])
-        
-                #Get the number of classes
                 num_classes = int (module["classes"])
-        
-                #Transform 
                 x = x.data
                 x = predict_transform(x, inp_dim, anchors, num_classes, CUDA)
-                if not write:              #if no collector has been intialised. 
+                if not write:
                     detections = x
                     write = 1
         
                 else:       
                     detections = torch.cat((detections, x), 1)
-        
             outputs[i] = x
             
         #set_trace()

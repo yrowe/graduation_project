@@ -217,7 +217,6 @@ def bbox_iou(box1, box2):
     return iou
 
 def non_maximum_suppress(roi, nms_thresh, score=None):
-    #order 打乱了顺序
     roi_size = roi.shape[0]
     if score is not None:
         order = score.argsort()[::-1].astype(np.int32)
@@ -328,5 +327,5 @@ def preprocess(img, min_size=600, max_size=1000):
 
 def print_rectangle(img, locs):
     for loc in locs:
-        cv2.rectangle(img, (loc[0], loc[1]), (loc[2], loc[3]), (255, 0, 0), 2)
+        cv2.rectangle(img, (loc[0], loc[1]), (loc[2], loc[3]), (0, 0, 255), 2)
     return img

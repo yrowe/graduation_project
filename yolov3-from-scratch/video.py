@@ -4,9 +4,14 @@ import time
 import os
 from ipdb import set_trace
 
-def camera_detect():
+def camera_detect(save_path = 'camera_deomo.avi'):
     cap = cv2.VideoCapture(0)
     assert cap.isOpened(), 'Cannot open camera'
+    frame_width = int(cap.get(3))
+    frame_height = int(cap.get(4))
+    print((frame_width,frame_height))
+
+    out = cv2.VideoWriter('{}'.format(save_path), cv2.VideoWriter_fourcc('M','J','P','G'),15, (frame_width,frame_height))
 
     start = time.time()
     cnt = 0
@@ -17,7 +22,10 @@ def camera_detect():
             loc = detect.get_all_predict(frame)
             if type(loc) != int:
                 img = detect.print_rectangle(frame, loc)
+
+            out.write(img)
             cv2.imshow("myCamera_demo", frame)
+
             key = cv2.waitKey(1)
             if key & 0xFF == ord('q'):
                 break

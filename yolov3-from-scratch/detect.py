@@ -30,13 +30,13 @@ def init():
     model = Darknet()
     model.module_list.load_state_dict(torch.load('yolov3.pth'))
     print("YOLO has been loaded")
-    #set_trace()
     model.net_info["height"] = cfg.img_height
     inp_dim = int(model.net_info["height"])
     assert inp_dim % 32 == 0, "size of input image should be divided exactly by the maximum feature map size." 
     assert inp_dim > 32, "size of input image should greater than maximum feature map size."
 
     model.cuda()
+    #print(model)
     model.eval()
 
     return (batch_size, confidence, nms_thresh, num_classes, classes, CUDA, model, inp_dim)
@@ -44,7 +44,6 @@ def init():
 batch_size, confidence, nms_thresh, num_classes, classes, CUDA, model, inp_dim = init()
 
 def get_all_predict(img):
-    #set_trace()
     model_inp = prep_image(img)
     im_dim = img.shape[1], img.shape[0]
     im_dim = torch.FloatTensor(im_dim).repeat(1,2)
@@ -69,12 +68,9 @@ def get_all_predict(img):
     for i in range(output.shape[0]):
         output[i, [1,3]] = torch.clamp(output[i, [1,3]], 0.0, im_dim[i,0])
         output[i, [2,4]] = torch.clamp(output[i, [2,4]], 0.0, im_dim[i,1])
-    #output = output[:, [0, 1, 3, 2, 4]]
     return output
 
 def letterbox_image(img):
-    '''resize image with unchanged aspect ratio using padding'''
-
     img_w, img_h = img.shape[1], img.shape[0]
     dim = (inp_dim, inp_dim)
     w, h = dim
@@ -88,36 +84,22 @@ def letterbox_image(img):
     return canvas
 
 def prep_image(img):
-    """
-    Prepare image for inputting to the neural network. 
-    
-    Returns a Variable 
-    """
-    #set_trace()
     img = (letterbox_image(img))
     img = img[:,:,::-1].transpose((2,0,1)).copy()
     img = torch.from_numpy(img).float().div(255.0).unsqueeze(0)
     return img
 
 def bbox_iou(box1, box2):
-    """
-    Returns the IoU of two bounding boxes 
-    
-    """
-    #Get the coordinates of bounding boxes
     b1_x1, b1_y1, b1_x2, b1_y2 = box1[:,0], box1[:,1], box1[:,2], box1[:,3]
     b2_x1, b2_y1, b2_x2, b2_y2 = box2[:,0], box2[:,1], box2[:,2], box2[:,3]
-    
-    #get the corrdinates of the intersection rectangle
+
     inter_rect_x1 =  torch.max(b1_x1, b2_x1)
     inter_rect_y1 =  torch.max(b1_y1, b2_y1)
     inter_rect_x2 =  torch.min(b1_x2, b2_x2)
     inter_rect_y2 =  torch.min(b1_y2, b2_y2)
-    
-    #Intersection area
+
     inter_area = torch.clamp(inter_rect_x2 - inter_rect_x1 + 1, min=0) * torch.clamp(inter_rect_y2 - inter_rect_y1 + 1, min=0)
 
-    #Union Area
     b1_area = (b1_x2 - b1_x1 + 1)*(b1_y2 - b1_y1 + 1)
     b2_area = (b2_x2 - b2_x1 + 1)*(b2_y2 - b2_y1 + 1)
     
@@ -150,10 +132,8 @@ def write_results(prediction, confidence, num_classes, nms_conf = 0.4):
     write = False
 
     for ind in range(batch_size):
-        image_pred = prediction[ind]          #image Tensor
-       #confidence threshholding 
-       #NMS
-    
+        image_pred = prediction[ind]
+
         max_conf, max_conf_score = torch.max(image_pred[:,5:5+ num_classes], 1)
         max_conf = max_conf.float().unsqueeze(1)
         max_conf_score = max_conf_score.float().unsqueeze(1)
@@ -168,30 +148,18 @@ def write_results(prediction, confidence, num_classes, nms_conf = 0.4):
         
         if image_pred_.shape[0] == 0:
             continue       
-#        
-  
-        #Get the various classes detected in the image
-        img_classes = unique(image_pred_[:,-1])  # -1 index holds the class index
+
+        img_classes = unique(image_pred_[:,-1])
         
         
         for cls in img_classes:
-            #perform NMS
-
-        
-            #get the detections with one particular class
             cls_mask = image_pred_*(image_pred_[:,-1] == cls).float().unsqueeze(1)
             class_mask_ind = torch.nonzero(cls_mask[:,-2]).squeeze()
             image_pred_class = image_pred_[class_mask_ind].view(-1,7)
-            
-            #sort the detections such that the entry with the maximum objectness
-            #confidence is at the top
             conf_sort_index = torch.sort(image_pred_class[:,4], descending = True )[1]
             image_pred_class = image_pred_class[conf_sort_index]
-            idx = image_pred_class.size(0)   #Number of detections
-            
+            idx = image_pred_class.size(0)
             for i in range(idx):
-                #Get the IOUs of all boxes that come after the one we are looking at 
-                #in the loop
                 try:
                     ious = bbox_iou(image_pred_class[i].unsqueeze(0), image_pred_class[i+1:])
                 except ValueError:
@@ -199,8 +167,6 @@ def write_results(prediction, confidence, num_classes, nms_conf = 0.4):
             
                 except IndexError:
                     break
-            
-                #Zero out all the detections that have IoU > treshhold
                 iou_mask = (ious < nms_conf).float().unsqueeze(1)
                 image_pred_class[i+1:] *= iou_mask       
             
@@ -208,7 +174,7 @@ def write_results(prediction, confidence, num_classes, nms_conf = 0.4):
                 non_zero_ind = torch.nonzero(image_pred_class[:,4]).squeeze()
                 image_pred_class = image_pred_class[non_zero_ind].view(-1,7)
                 
-            batch_ind = image_pred_class.new(image_pred_class.size(0), 1).fill_(ind)      #Repeat the batch_id for as many detections of the class cls in the image
+            batch_ind = image_pred_class.new(image_pred_class.size(0), 1).fill_(ind)
             seq = batch_ind, image_pred_class
             
             if not write:
@@ -229,14 +195,13 @@ def print_rectangle(img, loc):
         if rec[7] != 0.0:
             continue
         intRec = [int(i) for i in rec]
-        cv2.rectangle(img, (intRec[1], intRec[2]), (intRec[3], intRec[4]), (255, 0, 0), 3)
+        cv2.rectangle(img, (intRec[1], intRec[2]), (intRec[3], intRec[4]), (0, 0, 255), 2)
 
     return img
 
 if __name__ == '__main__':
     img = cv2.imread("imgs/img1.jpg")
     loc = get_all_predict(img)
-    #print(type(loc))
     if type(loc) == int:
         print("no detections.")
         torch.cuda.empty_cache()
@@ -245,13 +210,13 @@ if __name__ == '__main__':
     img = print_rectangle(img, loc)
     torch.cuda.empty_cache()
     #torch.cuda.empty_cache()
-    save_img = 'tt.jpg'
+    save_img = 'demo.jpg'
     
     cv2.imwrite("{}".format(save_img), img)
     print("save at {}".format(save_img))
     
-    cv2.namedWindow("detection",0)
-    cv2.resizeWindow("detection", 1440, 900);
+    #cv2.namedWindow("detection",0)
+    #cv2.resizeWindow("detection", 1440, 900);
     
     cv2.imshow("detection",img)
     cv2.waitKey(0)

@@ -21,7 +21,10 @@ def bbox_iou(box1, box2):
     return iou
 
 def compute_iou():
-    predictPath = "F:\PASCAL_VOC\VOCdevkit\VOC2007\yolopredict"
+    #predictPath = "F:\PASCAL_VOC\VOCdevkit\VOC2007\yolopredict"
+    #predictPath = "F:\PASCAL_VOC\VOCdevkit\VOC2007\HoGpredict"
+    #predictPath = "F:/PASCAL_VOC_LINUX/PASCAL_VOC/VOCdevkit/VOC2007/ssdpredict"
+    predictPath = "F:/PASCAL_VOC_LINUX/PASCAL_VOC/VOCdevkit/VOC2007/rcnnpredict"
     labelPath = "F:\PASCAL_VOC\VOCdevkit\VOC2007\labels"
     savePath = "F:\PASCAL_VOC\VOCdevkit\VOC2007\yoloIOU"
 
@@ -32,6 +35,8 @@ def compute_iou():
     #yolo predict may be empty
     #but if only yolo predict has some prediction, 
     #there must be corresponding label for ground truth.
+    locatingDis = 0
+    num = 0
     for fileName in totalFile:
         file = predictPath + '/' +fileName
         gtfile = labelPath + '/' + fileName
@@ -75,7 +80,19 @@ def compute_iou():
                 #ans += str(iou) + ' '
                 mat[i][j] = iou
             #ans += '\n'
-        
+        df = pd.DataFrame(mat)
+
+        for i in range(len2):
+            tmpIndex = df[i].argmax()
+            if df[i][tmpIndex] > 0.2:
+                try:
+                    locatingDis += np.abs(bbox1[tmpIndex] - bbox2[i]).sum()
+                    num += 1
+                except:
+                    set_trace()
+        #set_trace()
+
+        '''
         threshList = [0.2,0.3,0.4,0.5]
         for thresh in threshList:
 
@@ -95,9 +112,11 @@ def compute_iou():
             
             with open(precisionPath+"{}".format(thresh),"a+") as fp:
                 fp.write(str(precision)+'\n')
-
+        '''
         #outp = open(savePath+'/'+fileName,"w")
         #outp.write(ans)
+    print(locatingDis)
+    print(num)
 
 def cntp_precsion(path = "F:\graduation_project\yolo_precision.txt"):
     df = pd.read_csv("precision.txt", header=None)

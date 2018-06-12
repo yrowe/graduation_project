@@ -18,6 +18,13 @@ def camera_detect():
     net.load_state_dict(torch.load('fasterRCNN.pth'))
     print("successfully load faster rcnn.")
 
+    save_path = 'camera_deomo.avi'
+    frame_width = int(cap.get(3))
+    frame_height = int(cap.get(4))
+    print((frame_width,frame_height))
+
+    out = cv2.VideoWriter('{}'.format(save_path), cv2.VideoWriter_fourcc('M','J','P','G'), 1, (frame_width,frame_height))
+
     start = time.time()
     cnt = 0
     while cap.isOpened():
@@ -26,6 +33,7 @@ def camera_detect():
         if ret:
             locs = net.get_all_locs(frame)
             img = body_net.print_rectangle(frame, locs)
+            out.write(img)
             cv2.imshow("myCamera_demo", frame)
             key = cv2.waitKey(1)
             if key & 0xFF == ord('q'):

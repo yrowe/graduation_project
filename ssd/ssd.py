@@ -74,6 +74,16 @@ class ssd(nn.Module):
             self.priors.type(type(x)))
         return output
 
+    def preprocess(self, img):
+        img = cv2.resize(img, (300, 300)).astype(np.float32)
+        img -= (104.0, 117.0, 123.0)
+        img = img.astype(np.float32)
+        img = img[:, :, ::-1].copy()
+        img = torch.from_numpy(img).permute(2, 0, 1).unsqueeze(0).cuda()
+        return img
+
+    
+
 class Detect(Function):
     def __init__(self, num_classes, bkg_label, top_k, conf_thresh, nms_thresh):
         self.num_classes = num_classes
@@ -230,24 +240,18 @@ def down_sample(model_list):
         extractor.append(get_conv2d(*ll))
     return extractor
 
-def preprocess(img):
-    img = cv2.resize(img, (300, 300)).astype(np.float32)
-    img -= (104.0, 117.0, 123.0)
-    img = img.astype(np.float32)
-    img = img[:, :, ::-1].copy()
-    img = torch.from_numpy(img).permute(2, 0, 1).unsqueeze(0).cuda()
-    return img
 
-net = ssd().cuda()
 
-print("loading model...")
-net.load_state_dict(torch.load('ssd300.pth'))
-print("successfully load ssd.")
+if __name__ == '__main__':
+    net = ssd().cuda()
 
-net.eval()
+    print("loading model...")
+    net.load_state_dict(torch.load('ssd300.pth'))
+    print("successfully load ssd.")
 
-img = cv2.imread('1.jpg')
-img = preprocess(img)
+    net.eval()
+    img = cv2.imread('1.jpg')
+    img = preprocess(img)
 
-y = net(img)
-print(y)
+    y = net(img)
+    print(y)
