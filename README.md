@@ -1,3 +1,2 @@
 # graduation_project
-## environment install
-pip install -r requirement.txt
+the history file trash is so large. So the finnal version has been moved to [here](https://github.com/yrowe/pedestrian_detection)
